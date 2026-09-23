@@ -130,10 +130,17 @@ def format_age(seconds):
 
 def render_icon_svg(text, rgba):
     r, g, b, a = rgba
-    color = f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},{a})"
+    lighter = f"rgba({min(255, int(r * 255) + 28)},{min(255, int(g * 255) + 28)},{min(255, int(b * 255) + 28)},{a})"
+    base = f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},{a})"
     font_size = 34 if len(text) < 3 else 26
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
-  <circle cx="32" cy="32" r="30" fill="{color}"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="{lighter}"/>
+      <stop offset="100%" stop-color="{base}"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="29" fill="url(#g)" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
   <text x="32" y="32" font-family="sans-serif" font-size="{font_size}" font-weight="bold"
         fill="white" text-anchor="middle" dominant-baseline="central">{text}</text>
 </svg>"""
@@ -172,6 +179,11 @@ class UsageTray:
         self.menu.append(open_item)
 
         self.menu.append(Gtk.SeparatorMenuItem())
+        website_item = Gtk.MenuItem(label="yasinnerten.com")
+        website_item.connect("activate", self.open_website)
+        self.menu.append(website_item)
+
+        self.menu.append(Gtk.SeparatorMenuItem())
         exit_item = Gtk.MenuItem(label="Exit")
         exit_item.connect("activate", lambda _: Gtk.main_quit())
         self.menu.append(exit_item)
@@ -190,6 +202,11 @@ class UsageTray:
         import subprocess
 
         subprocess.Popen(["xdg-open", CLAUDE_DIR])
+
+    def open_website(self, _):
+        import subprocess
+
+        subprocess.Popen(["xdg-open", "https://yasinnerten.com"])
 
     def show_details(self, _):
         dialog = Gtk.MessageDialog(
@@ -261,6 +278,7 @@ class UsageTray:
         lines.append(f"Tray v{TRAY_VERSION} | file: {CACHE_FILE}")
         if stale:
             lines.append("Stale: open Claude Code and send a message to refresh.")
+        lines.append("claude-usage-on-icon - yasinnerten.com")
         self.details_text = "\n".join(lines)
 
 

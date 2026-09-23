@@ -147,6 +147,7 @@ def main():
         print("Stale: open Claude Code and send a message to refresh.")
     print("---")
     print("Open .claude folder | bash=/usr/bin/open param1=" + CLAUDE_DIR + " terminal=false")
+    print("yasinnerten.com | href=https://yasinnerten.com")
 
 
 if __name__ == "__main__":

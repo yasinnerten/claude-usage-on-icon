@@ -102,10 +102,20 @@ function New-TrayIcon([string]$text, [System.Drawing.Color]$bg) {
     $g    = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode     = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
-    $brush = New-Object System.Drawing.SolidBrush($bg)
-    $g.FillEllipse($brush, 0, 0, $size.Width - 1, $size.Height - 1)
 
-    $fontPx = if ($text.Length -ge 3) { $size.Height * 0.42 } else { $size.Height * 0.58 }
+    $ellipse = New-Object System.Drawing.RectangleF(1, 1, $size.Width - 2, $size.Height - 2)
+    $lighter = [System.Drawing.Color]::FromArgb(255, [Math]::Min(255, $bg.R + 28), [Math]::Min(255, $bg.G + 28), [Math]::Min(255, $bg.B + 28))
+    $gradBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+        (New-Object System.Drawing.PointF(0, 0)),
+        (New-Object System.Drawing.PointF(0, $size.Height)),
+        $lighter, $bg)
+    $g.FillEllipse($gradBrush, $ellipse)
+
+    $ringColor = [System.Drawing.Color]::FromArgb(90, 0, 0, 0)
+    $ringPen = New-Object System.Drawing.Pen($ringColor, 1.0)
+    $g.DrawEllipse($ringPen, $ellipse)
+
+    $fontPx = if ($text.Length -ge 3) { $size.Height * 0.4 } else { $size.Height * 0.56 }
     $font = New-Object System.Drawing.Font('Segoe UI', [single]$fontPx, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
     $sf = New-Object System.Drawing.StringFormat
     $sf.Alignment     = [System.Drawing.StringAlignment]::Center
@@ -116,7 +126,7 @@ function New-TrayIcon([string]$text, [System.Drawing.Color]$bg) {
     $hIcon = $bmp.GetHicon()
     $icon  = ([System.Drawing.Icon]::FromHandle($hIcon)).Clone()
     [void][ClaudeUsageIcon.Native]::DestroyIcon($hIcon)
-    $sf.Dispose(); $font.Dispose(); $brush.Dispose(); $g.Dispose(); $bmp.Dispose()
+    $sf.Dispose(); $font.Dispose(); $ringPen.Dispose(); $gradBrush.Dispose(); $g.Dispose(); $bmp.Dispose()
     return $icon
 }
 
@@ -178,6 +188,7 @@ function Update-Tray {
         $lines += "Source: $($c.source) | schema $($c.schema) | writer v$($c.writer_version)"
         $lines += "Tray v$TrayVersion | file: $cacheFile"
         if ($stale) { $lines += 'Stale: open Claude Code and send a message to refresh.' }
+        $lines += "claude-usage-on-icon - yasinnerten.com"
         $script:details = $lines -join "`n"
     }
 
@@ -203,6 +214,8 @@ $verItem.Enabled = $false
 [void]$menu.Items.Add('Show details', $null, { Show-Details })
 [void]$menu.Items.Add('Refresh now',  $null, { Update-Tray })
 [void]$menu.Items.Add('Open .claude folder', $null, { Start-Process explorer.exe -ArgumentList "`"$claudeDir`"" })
+[void]$menu.Items.Add('-')
+[void]$menu.Items.Add('yasinnerten.com', $null, { Start-Process 'https://yasinnerten.com' })
 [void]$menu.Items.Add('-')
 [void]$menu.Items.Add('Exit', $null, {
     $timer.Stop()
