@@ -50,11 +50,12 @@ jobs:
         continue-on-error: true
 
       # No-network guard: fail if sources contain network-related keywords.
-      # Scans writer/, tray/, and install/ - the installers must not fetch
+      # Scans writer/, tray/, and install/ - the installers (and the .cs
+      # source install-windows.ps1 compiles into a launcher) must not fetch
       # anything either.
       - name: "Security: no-network guard"
         run: |
-          if grep -rnE 'Invoke-WebRequest|Invoke-RestMethod|Net\.WebClient|HttpClient|urllib|requests\.(get|post|put)|socket\.(socket|connect)|http\.client|(^|[^A-Za-z0-9_./-])curl |wget |URLSession|\.credentials|oauth|Keychain|security find-' writer/ tray/ install/ --include="*.py" --include="*.ps1" --include="*.sh" 2>/dev/null | grep -v 'allow-network'; then
+          if grep -rnE 'Invoke-WebRequest|Invoke-RestMethod|Net\.WebClient|HttpClient|urllib|requests\.(get|post|put)|socket\.(socket|connect)|http\.client|(^|[^A-Za-z0-9_./-])curl |wget |URLSession|\.credentials|oauth|Keychain|security find-' writer/ tray/ install/ --include="*.py" --include="*.ps1" --include="*.sh" --include="*.cs" 2>/dev/null | grep -v 'allow-network'; then
             echo "ERROR: Found network-related code. This project must not make HTTP calls or read credentials."
             exit 1
           fi
@@ -96,11 +97,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Check version stamps match across scripts
         run: |
-          FILES=$(grep -rl '^# Version: ' writer/ tray/ install/ 2>/dev/null | sort)
-          VERSIONS=$(for f in $FILES; do grep -m1 '^# Version: ' "$f" | sed 's/^# Version: //'; done | sort -u)
+          # "# Version: x.y.z" for .py/.ps1/.sh, "// Version: x.y.z" for .cs.
+          # Excludes statusline.jxa.js: a documented, intentionally
+          # unimplemented placeholder (see README/CHANGELOG) - it isn't a
+          # shipped script, so it has no real version to agree on.
+          FILES=$(grep -rlE '^(#|//) Version: ' writer/ tray/ install/ 2>/dev/null | grep -v 'statusline\.jxa\.js' | sort)
+          VERSIONS=$(for f in $FILES; do grep -m1 -E '^(#|//) Version: ' "$f" | sed -E 's/^.*Version: //'; done | sort -u)
           COUNT=$(echo "$VERSIONS" | wc -l)
           echo "Found stamps:"
-          for f in $FILES; do echo "  $f: $(grep -m1 '^# Version: ' "$f")"; done
+          for f in $FILES; do echo "  $f: $(grep -m1 -E '^(#|//) Version: ' "$f")"; done
           if [ "$COUNT" -gt 1 ]; then
             echo "ERROR: version stamps disagree across scripts:"
             echo "$VERSIONS"
