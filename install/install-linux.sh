@@ -52,6 +52,32 @@ for arg in "$@"; do
     esac
 done
 
+print_banner() {
+    echo "claude-usage-on-icon Linux installer v$VERSION"
+    echo "-----------------------------------------------"
+    if [ "$UNINSTALL" = "1" ]; then
+        echo "This will REMOVE what a previous install added:"
+        echo "  - delete: $DEST_WRITER, $DEST_TRAY"
+        echo "  - delete: $AUTOSTART_FILE (if present)"
+        echo "  - edit:   $SETTINGS (only removes our statusLine entry; other keys untouched)"
+    else
+        echo "This will read/write only these locations, as the current user (no elevation, no sudo):"
+        echo "  - write: $DEST_WRITER, $DEST_TRAY"
+        echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
+        echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - write: $ICON_RUNTIME_NOTE"
+        echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
+        if [ "$AUTOSTART" = "1" ]; then
+            echo "  - write: $AUTOSTART_FILE  (launches the tray on login)"
+        fi
+    fi
+    echo "No network calls. No credentials, tokens, or keychains are read."
+    echo "-----------------------------------------------"
+    echo
+}
+ICON_RUNTIME_NOTE="\${XDG_RUNTIME_DIR:-/tmp}/claude-usage-on-icon/icon.svg  (temporary, redrawn each refresh)"
+print_banner
+
 if [ "$UNINSTALL" = "1" ]; then
     if [ -f "$SETTINGS" ]; then
         python3 - "$SETTINGS" "$STATUSLINE_CMD" <<'PYEOF'

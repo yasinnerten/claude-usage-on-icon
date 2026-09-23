@@ -49,6 +49,28 @@ for arg in "$@"; do
     esac
 done
 
+print_banner() {
+    echo "claude-usage-on-icon macOS installer v$VERSION"
+    echo "------------------------------------------------"
+    if [ "$UNINSTALL" = "1" ]; then
+        echo "This will REMOVE what a previous install added:"
+        echo "  - delete: $DEST_WRITER"
+        echo "  - delete: $DEST_PLUGIN"
+        echo "  - edit:   $SETTINGS (only removes our statusLine entry; other keys untouched)"
+    else
+        echo "This will read/write only these locations, as the current user (no elevation, no sudo):"
+        echo "  - write: $DEST_WRITER"
+        echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
+        echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - write: $DEST_PLUGIN  (a SwiftBar/xbar plugin folder you already control)"
+        echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
+    fi
+    echo "No network calls. No credentials, tokens, or password-manager access."
+    echo "------------------------------------------------"
+    echo
+}
+print_banner
+
 if ! command -v python3 >/dev/null 2>&1; then
     echo "error: python3 not found. Install it via Xcode Command Line Tools (xcode-select --install)" >&2
     echo "or Homebrew (brew install python3), then re-run this installer." >&2

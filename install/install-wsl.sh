@@ -46,6 +46,27 @@ for arg in "$@"; do
     esac
 done
 
+print_banner() {
+    echo "claude-usage-on-icon WSL installer v$VERSION"
+    echo "--------------------------------------------"
+    if [ "$UNINSTALL" = "1" ]; then
+        echo "This will REMOVE what a previous install added:"
+        echo "  - delete: $DEST_WRITER"
+        echo "  - edit:   $SETTINGS (only removes our statusLine entry; other keys untouched)"
+    else
+        echo "This will read/write only these locations, as the current user (no elevation):"
+        echo "  - write: $DEST_WRITER                 (the writer script itself)"
+        echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
+        echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
+        echo "  - read:  ~/.config/claude-usage-on-icon/win_home  (cached Windows-home lookup)"
+    fi
+    echo "No network calls. No credentials, tokens, or keychains are read. No sudo/elevation."
+    echo "--------------------------------------------"
+    echo
+}
+print_banner
+
 if ! command -v python3 >/dev/null 2>&1; then
     echo "error: python3 is required (Ubuntu ships it by default)." >&2
     exit 1

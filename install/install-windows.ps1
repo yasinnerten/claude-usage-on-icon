@@ -142,6 +142,32 @@ function Remove-StartupShortcut {
     }
 }
 
+function Write-Banner {
+    Write-Host "claude-usage-on-icon Windows installer v$Version"
+    Write-Host "---------------------------------------------------"
+    if ($Uninstall) {
+        Write-Host "This will REMOVE what a previous install added:"
+        Write-Host "  - delete: $TrayDest, $WriterDest"
+        Write-Host "  - delete: $ShortcutPath, $LauncherPath (if present)"
+        Write-Host "  - edit:   $SettingsFile (only removes our statusLine entry; other keys untouched)"
+    } else {
+        Write-Host "This will read/write only these locations, as the current user (no admin, no elevation):"
+        Write-Host "  - write: $TrayDest"
+        if (-not $TrayOnly) { Write-Host "  - write: $WriterDest" }
+        Write-Host "  - write: $ClaudeDir\usage-cache.json   (created on the next Claude Code message)"
+        Write-Host "  - write: $ClaudeDir\usage-statusline.log"
+        Write-Host "  - edit:  $SettingsFile  (backed up first, other keys preserved)"
+        if ($WithStartup) {
+            Write-Host "  - write: $ShortcutPath"
+            Write-Host "  - write: $LauncherPath"
+        }
+    }
+    Write-Host "No network calls. No credentials, tokens, or registry access. No elevation/UAC prompt."
+    Write-Host "---------------------------------------------------"
+    Write-Host ""
+}
+Write-Banner
+
 # ---------------- main ----------------
 
 if ($Uninstall) {
