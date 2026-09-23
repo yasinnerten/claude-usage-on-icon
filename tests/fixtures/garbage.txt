@@ -1,0 +1,3 @@
+This is not valid JSON.
+It's just garbage text.
+{ "broken": "json" without closing brace

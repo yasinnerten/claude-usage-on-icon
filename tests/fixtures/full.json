@@ -1,0 +1,19 @@
+{
+  "model": {
+    "display_name": "Claude 3.5 Sonnet"
+  },
+  "context_window": {
+    "used_percentage": 42
+  },
+  "rate_limits": {
+    "five_hour": {
+      "used_percentage": 31,
+      "resets_at": 1790167531
+    },
+    "seven_day": {
+      "used_percentage": 12,
+      "resets_at": 1790563931
+    }
+  },
+  "session_id": "abc123def456"
+}

@@ -1,0 +1,92 @@
+name: Bug report
+description: Report an issue with quota-tray
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you for reporting a bug. Please provide the information below to help us diagnose the issue."
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11
+        - Windows 10
+        - WSL (Ubuntu / Debian / other)
+        - Ubuntu GNOME
+        - Ubuntu KDE
+        - Other Linux
+        - macOS 14 (Sonoma)
+        - macOS 15 (Sequoia)
+        - Other macOS
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where_cli_runs
+    attributes:
+      label: Where does Claude Code CLI run?
+      options:
+        - Windows (native)
+        - WSL
+        - Linux
+        - macOS
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue in detail
+      placeholder: "E.g., the tray icon shows ? instead of the usage %, or the status line doesn't appear..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Installed quota-tray using ...
+        2. Configured Claude Code with ...
+        3. Sent a message in Claude Code
+        4. Observed ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: diag_log
+    attributes:
+      label: Diagnostic log
+      description: "Paste the last few lines of `~/.claude/usage-statusline.log` (this helps us see what the writer is doing)"
+      placeholder: "2026-09-23 13:45:32  v1.0.0 (wsl)  ok: cache written"
+    validations:
+      required: false
+
+  - type: textarea
+    id: cache_content
+    attributes:
+      label: Cache file content
+      description: "Paste the contents of `~/.claude/usage-cache.json` (if it exists)"
+      placeholder: '{"written_at": 1790163932, ...}'
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might be helpful?
+    validations:
+      required: false
