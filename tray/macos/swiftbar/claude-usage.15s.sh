@@ -10,7 +10,9 @@
 # Reads ONLY <cache dir>/usage-cache.json, which statusline.py writes from the
 # `rate_limits` data Claude Code already gives the status line.
 #
-# What it does NOT do: no network calls, no credential access, no writes.
+# What it does NOT do: no network calls, no credential access. Its only
+# writes are alert-config.json (when you set a threshold) and alert-state.json
+# (so an alert fires once per window), both next to the cache.
 #
 # Cache dir resolution (must match the writer):
 #   1. $CLAUDE_USAGE_ICON_DIR (explicit override)
@@ -18,6 +20,8 @@
 
 import json
 import os
+import subprocess
+import sys
 import time
 
 TRAY_VERSION = "1.0.0"
@@ -52,6 +56,100 @@ def resolve_cache_dir():
 
 CLAUDE_DIR = resolve_cache_dir()
 CACHE_FILE = os.path.join(CLAUDE_DIR, "usage-cache.json")
+ALERT_CONFIG_FILE = os.path.join(CLAUDE_DIR, "alert-config.json")
+# Unlike the Windows/Linux tray (a resident process that can just keep an
+# "already alerted" flag in memory), this script re-executes fresh every
+# poll, so "have we already notified for the current window" has to be
+# written to disk to survive between runs.
+ALERT_STATE_FILE = os.path.join(CLAUDE_DIR, "alert-state.json")
+
+
+def read_alert_threshold():
+    # Shared JSON config, also read/written by the Windows tray and Linux
+    # tray - same schema everywhere: {"threshold_pct": 80}, 0/missing = off.
+    if not os.path.exists(ALERT_CONFIG_FILE):
+        return 0.0
+    try:
+        with open(ALERT_CONFIG_FILE, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return float(cfg.get("threshold_pct") or 0)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return 0.0
+
+
+def read_alert_state():
+    if not os.path.exists(ALERT_STATE_FILE):
+        return {}
+    try:
+        with open(ALERT_STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_alert_state(state):
+    try:
+        with open(ALERT_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except OSError:
+        pass
+
+
+def send_notification(title, text):
+    try:
+        subprocess.Popen(["osascript", "-e", f'display notification "{text}" with title "{title}"'])
+    except OSError:
+        pass
+
+
+def check_alert(key, window, threshold, state):
+    # "Already notified for this window" is keyed by resets_at rather than a
+    # plain boolean: once the real reset happens, resets_at changes to a new
+    # future value, so the stored one no longer matches and a fresh crossing
+    # can notify again - no separate "is_reset" branch needed.
+    if window is None or threshold <= 0 or window["is_reset"]:
+        return
+    resets_at = window["reset_epoch"]
+    if window["pct"] >= threshold and state.get(key) != resets_at:
+        send_notification("Claude usage alert", f"{key} usage reached {window['pct']:.0f}% (alert set at {int(threshold)}%)")
+        state[key] = resets_at
+
+
+def prompt_and_save_threshold():
+    # Invoked from the dropdown menu via `--set-threshold`. Runs the dialog
+    # from Python (not AppleScript embedded in SwiftBar params) to avoid
+    # fragile multi-layer quoting.
+    current = read_alert_threshold()
+    default = str(int(current)) if current > 0 else "80"
+    script = (
+        'text returned of (display dialog "Notify me when either window reaches this '
+        f'percent used (0 = off):" default answer "{default}")'
+    )
+    try:
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if r.returncode != 0:  # user pressed Cancel
+        return
+    try:
+        pct = max(0.0, min(100.0, float(r.stdout.strip())))
+    except ValueError:
+        return
+    try:
+        os.makedirs(CLAUDE_DIR, exist_ok=True)
+        with open(ALERT_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"threshold_pct": pct}, f)
+        if os.path.exists(ALERT_STATE_FILE):
+            os.remove(ALERT_STATE_FILE)  # re-arm alerts under the new threshold
+    except OSError:
+        pass
+
+
+def alert_menu_line():
+    threshold = read_alert_threshold()
+    label = f"Set alert threshold... (currently {int(threshold)}%)" if threshold > 0 else "Set alert threshold... (currently off)"
+    script = os.path.abspath(__file__)
+    return f'{label} | bash="{script}" param1=--set-threshold terminal=false refresh=true'
 
 
 def read_cache():
@@ -100,6 +198,9 @@ def format_age(seconds):
 
 
 def main():
+    if "--set-threshold" in sys.argv:
+        prompt_and_save_threshold()
+        return
     cache = read_cache()
 
     if cache and cache.get("schema_error"):
@@ -107,6 +208,7 @@ def main():
         print(f"Claude usage on icon v{TRAY_VERSION} | href={REPO_URL}")
         print("---")
         print(cache["schema_error"])
+        print(alert_menu_line())
         return
 
     rate_limits = (cache or {}).get("rate_limits")
@@ -116,12 +218,23 @@ def main():
         print("---")
         print("No data yet")
         print("Send one message in Claude Code (signed in with a Pro/Max plan)")
+        print("---")
+        print(alert_menu_line())
         return
 
     fh = get_window(rate_limits.get("five_hour"))
     wk = get_window(rate_limits.get("seven_day"))
     age_seconds = time.time() - cache.get("written_at", 0)
     stale = age_seconds >= STALE_HOURS * 3600
+
+    threshold = read_alert_threshold()
+    if not stale and threshold > 0:
+        state = read_alert_state()
+        before = dict(state)
+        check_alert("five_hour", fh, threshold, state)
+        check_alert("seven_day", wk, threshold, state)
+        if state != before:
+            save_alert_state(state)
 
     worst = max((w["pct"] for w in (fh, wk) if w), default=0)
     if stale:
@@ -166,6 +279,7 @@ def main():
         print("Stale: open Claude Code and send a message to refresh.")
     print("---")
     print("Open .claude folder | bash=/usr/bin/open param1=" + CLAUDE_DIR + " terminal=false")
+    print(alert_menu_line())
     print("yasinnerten.com | href=https://yasinnerten.com")
 
 

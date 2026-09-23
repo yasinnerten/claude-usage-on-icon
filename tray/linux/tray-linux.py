@@ -7,8 +7,9 @@
 # `rate_limits` data Claude Code already gives the status line.
 #
 # What it does NOT do: no network calls, no credential access. The only files
-# it writes are two small temporary SVG icons under $XDG_RUNTIME_DIR (see
-# ICON_PATHS below - alternated each animation frame, not accumulated).
+# it writes are alert-config.json (only when you set an alert threshold) and
+# two small temporary SVG icons under $XDG_RUNTIME_DIR (see ICON_PATHS below -
+# alternated each animation frame, not accumulated).
 #
 # Cache dir resolution (must match the writer):
 #   1. $CLAUDE_USAGE_ICON_DIR (explicit override)
@@ -74,6 +75,7 @@ def icon_runtime_dir():
 
 CLAUDE_DIR = resolve_cache_dir()
 CACHE_FILE = os.path.join(CLAUDE_DIR, "usage-cache.json")
+ALERT_CONFIG_FILE = os.path.join(CLAUDE_DIR, "alert-config.json")
 ICON_DIR = icon_runtime_dir()
 # Some StatusNotifierItem hosts don't reliably notice a same-path file change
 # on rapid redraws; alternating between two paths forces a reload every frame.
@@ -84,6 +86,41 @@ COLOR_WARN = (0.84, 0.55, 0.0)
 COLOR_CRIT = (0.78, 0.16, 0.16)
 COLOR_GREY = (0.47, 0.47, 0.47)
 COLOR_SCHEMA_ERR = (0.63, 0.16, 0.63)
+
+
+def read_alert_threshold():
+    # Shared JSON config, also read/written by the Windows tray and macOS
+    # plugin - same schema everywhere: {"threshold_pct": 80}, 0/missing = off.
+    if not os.path.exists(ALERT_CONFIG_FILE):
+        return 0.0
+    try:
+        with open(ALERT_CONFIG_FILE, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return float(cfg.get("threshold_pct") or 0)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return 0.0
+
+
+def save_alert_threshold(pct):
+    try:
+        os.makedirs(CLAUDE_DIR, exist_ok=True)
+        with open(ALERT_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"threshold_pct": pct}, f)
+    except OSError:
+        pass
+
+
+def send_notification(title, text):
+    import shutil
+    import subprocess
+
+    notify_send = shutil.which("notify-send")
+    if not notify_send:
+        return  # no libnotify on this system; fail quietly, not a crash
+    try:
+        subprocess.Popen([notify_send, "--urgency=normal", "--app-name=claude-usage-on-icon", title, text])
+    except OSError:
+        pass
 
 
 def read_cache():
@@ -131,37 +168,44 @@ def format_age(seconds):
     return f"{int(seconds // 86400)}d ago"
 
 
-def render_icon_svg(text, rgb, sweep_pct, pulse, path):
-    """sweep_pct: -1 for no ring (e.g. '?' state), else 0..100. pulse: 0..1."""
-    r, g, b = rgb
-    lighter = f"rgb({min(255, int(r * 255) + 30)},{min(255, int(g * 255) + 30)},{min(255, int(b * 255) + 30)})"
-    base = f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
-    font_size = 30 if len(text) < 3 else 23
+def _pie_path(cx, cy, radius, sweep_deg):
+    sweep_deg = min(359.9, max(0.5, sweep_deg))
+    angle_rad = math.radians(sweep_deg)
+    end_x = cx + radius * math.sin(angle_rad)
+    end_y = cy - radius * math.cos(angle_rad)
+    large_arc = 1 if sweep_deg > 180 else 0
+    return f"M {cx},{cy} L {cx},{cy - radius} A {radius},{radius} 0 {large_arc},1 {end_x:.2f},{end_y:.2f} Z"
 
-    ring_svg = ""
+
+def render_icon_svg(text, rgb, sweep_pct, pulse, path):
+    """sweep_pct: -1 for a plain filled circle (e.g. '?' state), else 0..100
+    for a pie-fill wedge. pulse: 0..1.
+
+    Usage is drawn as a filled pie wedge (like a clock face filling in), not
+    a thin outline ring: a thin stroke risks disappearing once this SVG is
+    rasterized down to the ~16-24px the tray actually displays, but a large
+    solid-color region survives that rasterization easily - which is what
+    actually makes the animation visible at tray size.
+    """
+    r, g, b = rgb
+    cx, cy, radius = 32, 32, 29
+    font_size = 40 if len(text) < 2 else 30
+
     if sweep_pct >= 0:
-        cx, cy, radius = 32, 32, 27.5
-        circumference = 2 * math.pi * radius
-        arc_len = max(0.05, min(circumference - 0.05, circumference * (sweep_pct / 100.0)))
-        arc_alpha = 0.78 + 0.22 * pulse
-        stroke_w = 5.0 + 0.8 * pulse
-        ring_svg = f"""
-  <circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="rgba(128,128,128,0.30)" stroke-width="4.5"/>
-  <circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="rgba(255,255,255,{arc_alpha:.2f})"
-          stroke-width="{stroke_w:.1f}" stroke-linecap="round"
-          stroke-dasharray="{arc_len:.2f} {circumference:.2f}"
-          transform="rotate(-90 {cx} {cy})"/>"""
+        track = f"rgb({int(r * 255 * 0.35 + 40)},{int(g * 255 * 0.35 + 40)},{int(b * 255 * 0.35 + 40)})"
+        boost = int(25 * pulse)
+        fill = f"rgb({min(255, int(r * 255) + boost)},{min(255, int(g * 255) + boost)},{min(255, int(b * 255) + boost)})"
+        sweep_deg = 360.0 * (sweep_pct / 100.0)
+        badge_svg = f'<circle cx="{cx}" cy="{cy}" r="{radius}" fill="{track}"/>'
+        if sweep_pct > 0:
+            badge_svg += f'<path d="{_pie_path(cx, cy, radius, sweep_deg)}" fill="{fill}"/>'
+    else:
+        base = f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
+        badge_svg = f'<circle cx="{cx}" cy="{cy}" r="{radius}" fill="{base}"/>'
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="{lighter}"/>
-      <stop offset="100%" stop-color="{base}"/>
-    </linearGradient>
-  </defs>
-  <circle cx="32" cy="32" r="21" fill="url(#g)" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>{ring_svg}
-  <text x="32.5" y="33.5" font-family="sans-serif" font-size="{font_size}" font-weight="bold"
-        fill="rgba(0,0,0,0.35)" text-anchor="middle" dominant-baseline="central">{text}</text>
+  {badge_svg}
+  <circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>
   <text x="32" y="32" font-family="sans-serif" font-size="{font_size}" font-weight="bold"
         fill="white" text-anchor="middle" dominant-baseline="central">{text}</text>
 </svg>"""
@@ -193,6 +237,10 @@ class UsageTray:
         self.pulse_t = 0.0
         self.tooltip = f"claude-usage-on-icon v{TRAY_VERSION}"
 
+        self.alert_threshold = read_alert_threshold()
+        self.alerted_five_hour = False
+        self.alerted_seven_day = False
+
         self.menu = Gtk.Menu()
         self.version_item = Gtk.MenuItem(label=f"Claude usage on icon v{TRAY_VERSION}")
         self.version_item.connect("activate", self.open_repo)
@@ -210,6 +258,12 @@ class UsageTray:
         open_item = Gtk.MenuItem(label="Open .claude folder")
         open_item.connect("activate", self.open_folder)
         self.menu.append(open_item)
+
+        self.menu.append(Gtk.SeparatorMenuItem())
+        self.alert_item = Gtk.MenuItem(label="Set alert threshold...")
+        self.alert_item.connect("activate", self.show_alert_prompt)
+        self.menu.append(self.alert_item)
+        self._update_alert_menu_label()
 
         self.menu.append(Gtk.SeparatorMenuItem())
         website_item = Gtk.MenuItem(label="yasinnerten.com")
@@ -264,6 +318,57 @@ class UsageTray:
         dialog.run()
         dialog.destroy()
 
+    def _update_alert_menu_label(self):
+        if self.alert_threshold > 0:
+            self.alert_item.set_label(f"Set alert threshold... (currently {int(self.alert_threshold)}%)")
+        else:
+            self.alert_item.set_label("Set alert threshold... (currently off)")
+
+    def show_alert_prompt(self, _):
+        dialog = Gtk.Dialog(title="Claude usage alert threshold", transient_for=None, flags=0)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
+
+        box = dialog.get_content_area()
+        label = Gtk.Label(label="Notify me when either window's usage reaches (0 = off):")
+        label.set_margin_start(10)
+        label.set_margin_end(10)
+        label.set_margin_top(10)
+        box.add(label)
+
+        adjustment = Gtk.Adjustment(value=self.alert_threshold, lower=0, upper=100, step_increment=5)
+        spin = Gtk.SpinButton(adjustment=adjustment, numeric=True)
+        spin.set_margin_start(10)
+        spin.set_margin_end(10)
+        spin.set_margin_bottom(10)
+        box.add(spin)
+
+        dialog.show_all()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            pct = float(spin.get_value())
+            self.alert_threshold = pct
+            self.alerted_five_hour = False
+            self.alerted_seven_day = False
+            save_alert_threshold(pct)
+            self._update_alert_menu_label()
+        dialog.destroy()
+
+    def _test_alert_window(self, label, window, already_alerted_attr):
+        # Fires a notification the first time a window crosses the configured
+        # threshold, and arms it again once that window resets (usage only
+        # ever climbs within a window, so no need to re-arm on a mere dip).
+        if window is None or self.alert_threshold <= 0:
+            return
+        if window["is_reset"]:
+            setattr(self, already_alerted_attr, False)
+            return
+        if window["pct"] >= self.alert_threshold and not getattr(self, already_alerted_attr):
+            setattr(self, already_alerted_attr, True)
+            send_notification(
+                "Claude usage alert",
+                f"{label} usage reached {window['pct']:.0f}% (alert set at {int(self.alert_threshold)}%)",
+            )
+
     def animate_frame(self):
         delta = self.target_pct - self.display_pct
         if abs(delta) < 0.15:
@@ -311,6 +416,10 @@ class UsageTray:
         wk = get_window(rate_limits.get("seven_day"))
         age_seconds = time.time() - cache.get("written_at", 0)
         stale = age_seconds >= STALE_HOURS * 3600
+
+        if not stale:
+            self._test_alert_window("5-hour", fh, "alerted_five_hour")
+            self._test_alert_window("Weekly", wk, "alerted_seven_day")
 
         worst = max((w["pct"] for w in (fh, wk) if w), default=0)
         if stale:
