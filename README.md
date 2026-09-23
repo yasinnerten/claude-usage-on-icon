@@ -1,4 +1,4 @@
-# quota-tray
+# claude-usage-on-icon
 
 **Plan-usage tray icon for Claude Code**
 
@@ -6,7 +6,7 @@ Show Claude Code's 5-hour and weekly plan usage persistently in your OS tray or 
 
 ## Core principle: no token, no network
 
-Unlike existing tools that read your OAuth token and call undocumented APIs, quota-tray uses only:
+Unlike existing tools that read your OAuth token and call undocumented APIs, claude-usage-on-icon uses only:
 - **Claude Code's official status line input** — already documented and available to your scripts
 - **Local file reads only** — the cache file is read-only from the tray's perspective
 - **No HTTP calls, no credentials, no private APIs**
@@ -17,64 +17,60 @@ See [how it works](docs/how-it-works.md) for the architecture.
 
 ## Quick start
 
+> **Pre-release note:** no `v1.0.0` tag exists yet, so there's no downloadable release zip. Clone the repo for now — each installer resolves the writer/tray scripts relative to its own location, so it must be run from inside the checkout. Once tagged, a release zip per platform (installer + scripts already together) will let you skip the clone.
+
+```bash
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+```
+
 **Choose your platform:**
 
 ### Windows (native)
 
 ```powershell
-# Copy the installer and scripts
-curl -o install-windows.ps1 https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-windows.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -WithStartup
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
 ```
 
 Then:
-1. Open Claude Code settings (⚙️ → settings.json)
-2. Restart Claude Code
-3. Send a message (status line will appear at the bottom)
-4. Look for the tray icon in the bottom-right corner
+1. Restart Claude Code
+2. Send a message (the status line will appear at the bottom)
+3. Look for the tray icon in the bottom-right corner
 
 ### WSL (Ubuntu / Debian / other)
 
-On WSL:
+On WSL, inside the cloned repo:
 ```bash
-curl -o install-wsl.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-wsl.sh
-chmod +x install-wsl.sh
-./install-wsl.sh
+./install/install-wsl.sh
 ```
 
-Then on Windows:
+Then on Windows, inside the same repo (accessible from Windows at `\\wsl.localhost\<distro>\...`, or clone it separately on the Windows side):
 ```powershell
-# Run the Windows installer (same as above)
-curl -o install-windows.ps1 https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-windows.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -WithStartup
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
 ```
 
-The tray will appear on Windows and read from your WSL usage cache.
+The tray runs on Windows and reads the cache your WSL writer creates (the Windows home directory is auto-detected — no manual path needed).
 
 ### Linux (GNOME / KDE / XFCE / Cinnamon)
 
 ```bash
-curl -o install-linux.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-linux.sh
-chmod +x install-linux.sh
-./install-linux.sh --autostart
+./install/install-linux.sh --autostart
 ```
 
 Then restart Claude Code and send a message. The tray icon will appear in your notification area.
 
-**Note:** GNOME requires the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/). KDE, XFCE, and Cinnamon work out of the box.
+**Note:** GNOME requires the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/). KDE, XFCE, and Cinnamon work out of the box. Requires `gir1.2-ayatanaappindicator3-0.1` (or your distro's equivalent) — the installer tells you the exact package if it's missing.
 
 ### macOS
 
 ```bash
-curl -o install-macos.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-macos.sh
-chmod +x install-macos.sh
-./install-macos.sh
+./install/install-macos.sh
 ```
 
 Then:
-1. Install [SwiftBar](https://swiftbar.app) or [BitBar](https://bitbar.com)
-2. Restart Claude Code and send a message
-3. The quota-tray plugin will appear in your menu bar
+1. Install [SwiftBar](https://swiftbar.app) or [BitBar](https://bitbar.com) if you haven't already
+2. Refresh SwiftBar's plugins, restart Claude Code, and send a message
+3. The claude-usage-on-icon plugin will appear in your menu bar
 
 ---
 
@@ -121,29 +117,29 @@ Then:
 
 ### Windows
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -Uninstall
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -Uninstall
 ```
 
 ### WSL
 ```bash
-./install-wsl.sh --uninstall
+./install/install-wsl.sh --uninstall
 ```
 
 ### Linux
 ```bash
-./install-linux.sh --uninstall
+./install/install-linux.sh --uninstall
 ```
 
 ### macOS
 ```bash
-./install-macos.sh --uninstall
+./install/install-macos.sh --uninstall
 ```
 
 ---
 
 ## How it works vs. other tools
 
-| Aspect | quota-tray | Token-reading tools |
+| Aspect | claude-usage-on-icon | Token-reading tools |
 |---|---|---|
 | **Reads tokens** | ❌ No | ✅ Yes (from .credentials.json) |
 | **Makes HTTP calls** | ❌ No | ✅ Yes (calls /api/oauth/usage) |
@@ -152,16 +148,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -Uninsta
 | **Supported CLI platforms** | Windows / WSL / Linux / macOS | Often Windows-only |
 | **Dependency risk** | Low (stdlib + UI frameworks) | Higher (HTTP client, token handling) |
 
-Choose quota-tray if you prefer **transparency, simplicity, and minimal dependencies**. Token-reading tools may offer more frequent updates, but at the cost of credential access and unofficial API use.
+Choose claude-usage-on-icon if you prefer **transparency, simplicity, and minimal dependencies**. Token-reading tools may offer more frequent updates, but at the cost of credential access and unofficial API use.
 
 ---
 
 ## Support for API key and Bedrock sign-ins
 
-API keys (Anthropic Bedrock, Vertex AI) and non-Pro/Max sign-ins **do not receive `rate_limits`** in the status line input, so quota-tray can't display them. Only **claude.ai Pro/Max** sign-ins are supported.
+API keys (Anthropic Bedrock, Vertex AI) and non-Pro/Max sign-ins **do not receive `rate_limits`** in the status line input, so claude-usage-on-icon can't display them. Only **claude.ai Pro/Max** sign-ins are supported.
 
 If you use an API key, consider:
-- Running quota-tray for your Pro/Max claude.ai account on another machine
+- Running claude-usage-on-icon for your Pro/Max claude.ai account on another machine
 - Using the [official usage page](https://claude.ai/account/usage)
 
 ---
@@ -200,10 +196,10 @@ MIT © 2026 Ahmet Yasin Erten
 
 ## Feedback
 
-Found a bug? Have a feature idea? [Open an issue](https://github.com/<GITHUB_OWNER>/quota-tray/issues) and include:
+Found a bug? Have a feature idea? [Open an issue](https://github.com/yasinnerten/claude-usage-on-icon/issues) and include:
 - Your OS and Claude Code version (run `/status` in Claude Code)
 - Where the CLI runs (Windows / WSL / Linux / macOS)
 - The last few lines of `~/.claude/usage-statusline.log`
 - (Optional) The contents of `~/.claude/usage-cache.json`
 
-Thank you for using quota-tray!
+Thank you for using claude-usage-on-icon!

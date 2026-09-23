@@ -1,6 +1,6 @@
 # Security and Privacy
 
-## What quota-tray reads and writes
+## What claude-usage-on-icon reads and writes
 
 **Reads:**
 - stdin from Claude Code (the status line input, containing usage percentages and reset times)
@@ -10,10 +10,10 @@
 - `~/.claude/usage-cache.json` (usage data only: percentages, reset times, session ID)
 - `~/.claude/usage-statusline.log` (diagnostic log: one line, overwritten each run)
 - Installer backups of `settings.json` (if modifying the status line configuration)
-- Autostart entry (Linux: `~/.config/autostart/quota-tray.desktop`; optional, user-prompted)
+- Autostart entry (Linux: `~/.config/autostart/claude-usage-on-icon.desktop`; optional, user-prompted)
 - (Linux/macOS tray only) Temporary icons in `$XDG_RUNTIME_DIR/<project>/` (not included in cache)
 
-## What quota-tray does NOT do
+## What claude-usage-on-icon does NOT do
 
 - **No network calls** (no update checks, no telemetry, no API calls)
 - **No credential access** (no `.credentials.json`, no keychains, no tokens)
@@ -56,4 +56,4 @@ If you discover a security issue, please report it privately via **GitHub privat
 2. Describe the issue, impact, and (optionally) a fix
 3. Do not disclose the vulnerability publicly until a patch is released
 
-Thank you for helping keep quota-tray secure.
+Thank you for helping keep claude-usage-on-icon secure.

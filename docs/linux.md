@@ -10,16 +10,16 @@
 ## Installation
 
 ```bash
-curl -o install-linux.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-linux.sh
-chmod +x install-linux.sh
-./install-linux.sh --autostart
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+./install/install-linux.sh --autostart
 ```
 
 This will:
 1. Check for required GTK packages
 2. Copy `statusline.py` and `tray-linux.py` to `~/.claude/`
 3. Merge the `statusLine` setting into `~/.claude/settings.json`
-4. Create `~/.config/autostart/quota-tray.desktop` for automatic startup
+4. Create `~/.config/autostart/claude-usage-on-icon.desktop` for automatic startup
 
 ### Missing dependencies?
 
@@ -96,7 +96,7 @@ pkill tray-linux.py
 ## Uninstall
 
 ```bash
-./install-linux.sh --uninstall
+./install/install-linux.sh --uninstall
 ```
 
 This will:
@@ -106,10 +106,10 @@ This will:
 
 ## Advanced: custom cache location
 
-Set `QUOTA_TRAY_DIR` to use a different cache path:
+Set `CLAUDE_USAGE_ICON_DIR` to use a different cache path:
 
 ```bash
-QUOTA_TRAY_DIR=/custom/path tray-linux.py
+CLAUDE_USAGE_ICON_DIR=/custom/path tray-linux.py
 ```
 
 Both the writer and tray respect this environment variable.
@@ -118,7 +118,7 @@ Both the writer and tray respect this environment variable.
 
 Install without autostart:
 ```bash
-./install-linux.sh
+./install/install-linux.sh
 ```
 
 Then start manually each session:

@@ -1,4 +1,4 @@
-# Troubleshooting quota-tray
+# Troubleshooting claude-usage-on-icon
 
 ## Common issues and solutions
 
@@ -8,7 +8,7 @@
 | **Line shows `[Model] \| ctx …` but no `5h` or `week`** | No `rate_limits` data | Are you signed in with a Pro/Max plan? Have you sent at least one message this session? |
 | **Tray shows `?` (no data)** | Cache doesn't exist or is empty | Check that the status line ran (see above), then wait 15 seconds for the tray to poll |
 | **Tray shows old value after you sent a message** | Multiple possible causes | Compare the cache path shown in tray details with the path in the log; check the tray version in the menu |
-| **Log says `write FAILED: Permission denied`** | Cache directory not writable | Ensure `~/.claude/` exists and is writable; check `QUOTA_TRAY_DIR` env var if set |
+| **Log says `write FAILED: Permission denied`** | Cache directory not writable | Ensure `~/.claude/` exists and is writable; check `CLAUDE_USAGE_ICON_DIR` env var if set |
 | **Cache has `resets_at` far in the future (e.g., year 2033) and `session_id: null`** | Test data left in cache | Delete `~/.claude/usage-cache.json` and send a real message |
 
 ## Decision table: where is Claude Code running?
@@ -58,7 +58,7 @@ This is the #1 source of confusion, especially on Windows + WSL.
 - [ ] `install-windows.ps1` was also run (installs the Windows tray)
 - [ ] WSL can reach the Windows home directory:
   - Run: `ls /mnt/c/Users/$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r')/.claude`
-  - If this fails, the auto-detect won't work; set `QUOTA_TRAY_DIR` manually
+  - If this fails, the auto-detect won't work; set `CLAUDE_USAGE_ICON_DIR` manually
 - [ ] Check the WSL diagnostic log: `cat ~/.claude/usage-statusline.log`
 - [ ] Check the Windows tray version and cache path (right-click tray icon → Show details)
 
@@ -70,7 +70,7 @@ This is the #1 source of confusion, especially on Windows + WSL.
 - [ ] Required package installed: `gir1.2-ayatanaappindicator3-0.1` (Debian/Ubuntu) or equivalent for your distro
 - [ ] For GNOME: AppIndicator extension is enabled
 - [ ] Autostart is enabled (optional):
-  - Check: `cat ~/.config/autostart/quota-tray.desktop`
+  - Check: `cat ~/.config/autostart/claude-usage-on-icon.desktop`
   - If not present, run: `install-linux.sh --autostart`
 - [ ] Check the diagnostic log: `cat ~/.claude/usage-statusline.log`
 

@@ -9,7 +9,9 @@
 ## Installation
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -WithStartup
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
 ```
 
 This will:
@@ -22,7 +24,7 @@ This will:
 
 **Script blocked by execution policy:**
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1
 ```
 
 **Settings.json is invalid JSON:**
@@ -71,7 +73,7 @@ The cache file path might be wrong. Right-click the tray icon and select "Show d
 ## Uninstall
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -Uninstall
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -Uninstall
 ```
 
 This will:
@@ -87,9 +89,9 @@ If you run Claude Code **inside WSL** but want the Windows tray, see [WSL instal
 
 ## Advanced: Custom cache location
 
-Set the `QUOTA_TRAY_DIR` environment variable to override the cache location:
+Set the `CLAUDE_USAGE_ICON_DIR` environment variable to override the cache location:
 ```powershell
-$env:QUOTA_TRAY_DIR = "C:\Custom\Path"
+$env:CLAUDE_USAGE_ICON_DIR = "C:\Custom\Path"
 powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\tray-windows.ps1"
 ```
 

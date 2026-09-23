@@ -1,5 +1,5 @@
 name: Bug report
-description: Report an issue with quota-tray
+description: Report an issue with claude-usage-on-icon
 labels: ["bug"]
 body:
   - type: markdown
@@ -50,7 +50,7 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Installed quota-tray using ...
+        1. Installed claude-usage-on-icon using ...
         2. Configured Claude Code with ...
         3. Sent a message in Claude Code
         4. Observed ...

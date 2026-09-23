@@ -13,12 +13,12 @@
 
 Download and install [SwiftBar](https://swiftbar.app) (or [BitBar](https://bitbar.com), the older but compatible alternative).
 
-### Step 2: Install quota-tray
+### Step 2: Install claude-usage-on-icon
 
 ```bash
-curl -o install-macos.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-macos.sh
-chmod +x install-macos.sh
-./install-macos.sh
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+./install/install-macos.sh
 ```
 
 This will:
@@ -30,7 +30,7 @@ This will:
 
 1. **Restart Claude Code** (close and reopen)
 2. **Send a message** (you'll see the status line at the bottom)
-3. **Open SwiftBar** and look for the quota-tray icon in your menu bar
+3. **Open SwiftBar** and look for the claude-usage-on-icon icon in your menu bar
 
 The plugin runs every 15 seconds to poll the cache.
 
@@ -53,8 +53,8 @@ open /Applications/SwiftBar.app
 ### No menu bar icon
 
 1. Verify SwiftBar is running: `ps aux | grep SwiftBar`
-2. Check SwiftBar preferences → Plugins, ensure quota-tray plugin is enabled
-3. Verify plugin file exists: `ls ~/Library/Application\ Support/SwiftBar/Plugins/quota-tray.*`
+2. Check SwiftBar preferences → Plugins, ensure claude-usage-on-icon plugin is enabled
+3. Verify plugin file exists: `ls ~/Library/Application\ Support/SwiftBar/Plugins/claude-usage-on-icon.*`
 
 ### Menu bar icon shows `?`
 
@@ -79,7 +79,7 @@ Then verify: `which python3`
 ## Uninstall
 
 ```bash
-./install-macos.sh --uninstall
+./install/install-macos.sh --uninstall
 ```
 
 This will:
@@ -108,10 +108,10 @@ For now, SwiftBar v1 is the recommended approach.
 
 ## Advanced: custom cache location
 
-Set `QUOTA_TRAY_DIR` to use a different cache path:
+Set `CLAUDE_USAGE_ICON_DIR` to use a different cache path:
 
 ```bash
-QUOTA_TRAY_DIR=/custom/path statusline.py < /tmp/claude-status.json
+CLAUDE_USAGE_ICON_DIR=/custom/path statusline.py < /tmp/claude-status.json
 ```
 
 Both the writer and plugin respect this variable.

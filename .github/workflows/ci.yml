@@ -36,23 +36,29 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Ruff lint (Python code quality)
+      # Ruff lint (Python code quality) - find *.py recursively; the SwiftBar
+      # plugin is Python under a .sh name (SwiftBar keys off the shebang), so
+      # it's found by content, not extension.
       - name: Lint with ruff
         run: |
           python -m pip install ruff --quiet
-          ruff check writer/*.py tray/*.py tests/*.py 2>/dev/null || true
-          ruff format --check writer/*.py tray/*.py tests/*.py 2>/dev/null || true
+          PYFILES=$(grep -rl '^#!/usr/bin/env python3' writer/ tray/ tests/ 2>/dev/null; find writer/ tray/ tests/ -name '*.py' 2>/dev/null)
+          PYFILES=$(echo "$PYFILES" | sort -u)
+          [ -n "$PYFILES" ] && ruff check $PYFILES || true
+          [ -n "$PYFILES" ] && ruff format --check $PYFILES || true
         if: runner.os == 'Linux' || runner.os == 'macOS'
         continue-on-error: true
 
-      # No-network guard: fail if sources contain network-related keywords
+      # No-network guard: fail if sources contain network-related keywords.
+      # Scans writer/, tray/, and install/ - the installers must not fetch
+      # anything either.
       - name: Security: no-network guard
         run: |
-          python -m pip install ruff --quiet
-          if grep -rE 'Invoke-WebRequest|Invoke-RestMethod|Net\.WebClient|HttpClient|urllib|requests|socket|http\.client|curl|wget|URLSession|\.credentials|oauth|Keychain|security find-' writer/ tray/ --include="*.py" --include="*.ps1" --include="*.sh" 2>/dev/null | grep -v '#.*allow-network'; then
+          if grep -rnE 'Invoke-WebRequest|Invoke-RestMethod|Net\.WebClient|HttpClient|urllib|requests\.(get|post|put)|socket\.(socket|connect)|http\.client|(^|[^A-Za-z0-9_./-])curl |wget |URLSession|\.credentials|oauth|Keychain|security find-' writer/ tray/ install/ --include="*.py" --include="*.ps1" --include="*.sh" 2>/dev/null | grep -v 'allow-network'; then
             echo "ERROR: Found network-related code. This project must not make HTTP calls or read credentials."
             exit 1
           fi
+          echo "no-network guard: clean"
         continue-on-error: true
 
       # Python tests
@@ -76,18 +82,28 @@ jobs:
       - name: Lint shell scripts
         run: |
           if command -v shellcheck &>/dev/null; then
-            shellcheck writer/*.sh tray/*.sh install/*.sh 2>/dev/null || true
+            shellcheck install/*.sh || true
           fi
         if: runner.os == 'Linux' || runner.os == 'macOS'
         continue-on-error: true
 
-  # Verify version stamps match (post-scaffold, when files exist)
+  # All shipped scripts must carry the same "# Version: x.y.z" stamp. On a
+  # tagged release, a separate check (not yet added) will also verify the
+  # stamp matches the tag.
   version-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901edd7d16190fc6369f1a12a3c1ff069b  # v4
-      - name: Check version stamps
+      - name: Check version stamps match across scripts
         run: |
-          # This job will be enabled once scripts are added
-          echo "Version check: deferred until milestone M1"
-        continue-on-error: true
+          FILES=$(grep -rl '^# Version: ' writer/ tray/ install/ 2>/dev/null | sort)
+          VERSIONS=$(for f in $FILES; do grep -m1 '^# Version: ' "$f" | sed 's/^# Version: //'; done | sort -u)
+          COUNT=$(echo "$VERSIONS" | wc -l)
+          echo "Found stamps:"
+          for f in $FILES; do echo "  $f: $(grep -m1 '^# Version: ' "$f")"; done
+          if [ "$COUNT" -gt 1 ]; then
+            echo "ERROR: version stamps disagree across scripts:"
+            echo "$VERSIONS"
+            exit 1
+          fi
+          echo "All stamped scripts agree on version: $VERSIONS"

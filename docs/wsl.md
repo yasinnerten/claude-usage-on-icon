@@ -16,9 +16,9 @@ Running Claude Code inside WSL and want the Windows tray? This guide covers both
 Inside your WSL terminal:
 
 ```bash
-curl -o install-wsl.sh https://github.com/<GITHUB_OWNER>/quota-tray/releases/download/v1.0.0/install-wsl.sh
-chmod +x install-wsl.sh
-./install-wsl.sh
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+./install/install-wsl.sh
 ```
 
 This will:
@@ -30,10 +30,13 @@ The writer will auto-detect the Windows home directory and write the cache to `/
 
 ### Step 2: Install the tray on Windows
 
-On the Windows side, run:
+On the Windows side, clone the repo again (or point PowerShell at the WSL checkout via
+`\\wsl.localhost\<distro>\...`), then run the installer from inside it:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -WithStartup
+git clone https://github.com/yasinnerten/claude-usage-on-icon.git
+cd claude-usage-on-icon
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
 ```
 
 This installs the Windows tray, which reads from the cache the WSL writer creates.
@@ -59,13 +62,13 @@ The writer tries to auto-detect `USERPROFILE` by querying `cmd.exe`. If that fai
 
 ```bash
 # Set manually
-export QUOTA_TRAY_DIR="/mnt/c/Users/<your-username>/.claude"
+export CLAUDE_USAGE_ICON_DIR="/mnt/c/Users/<your-username>/.claude"
 ```
 
 Or cache it:
 ```bash
-mkdir -p ~/.config/quota-tray
-echo "/mnt/c/Users/<your-username>/.claude" > ~/.config/quota-tray/win_home
+mkdir -p ~/.config/claude-usage-on-icon
+echo "/mnt/c/Users/<your-username>/.claude" > ~/.config/claude-usage-on-icon/win_home
 ```
 
 ### Windows tray doesn't see the cache
@@ -75,7 +78,7 @@ Verify the paths match:
 2. Verify cache exists: `ls /mnt/c/Users/<username>/.claude/usage-cache.json`
 3. On Windows, right-click tray → "Show details" and check the path
 
-If paths differ, set `QUOTA_TRAY_DIR` on both sides (WSL and Windows) to the same location.
+If paths differ, set `CLAUDE_USAGE_ICON_DIR` on both sides (WSL and Windows) to the same location.
 
 ### No status line in Claude Code (WSL)
 
@@ -96,12 +99,12 @@ Look for `write FAILED` or `no rate_limits`. If it says `ok: cache written`, che
 
 ### WSL side
 ```bash
-./install-wsl.sh --uninstall
+./install/install-wsl.sh --uninstall
 ```
 
 ### Windows side
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -Uninstall
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -Uninstall
 ```
 
 ## Advanced: custom Windows path
@@ -109,7 +112,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install-windows.ps1 -Uninsta
 If your Windows home isn't at the default location (e.g., external drive), set:
 
 ```bash
-export QUOTA_TRAY_DIR="/mnt/d/My Drive/Users/yasin/.claude"
+export CLAUDE_USAGE_ICON_DIR="/mnt/d/My Drive/Users/yasin/.claude"
 ```
 
-Both the WSL writer and Windows tray respect `QUOTA_TRAY_DIR` (when set).
+Both the WSL writer and Windows tray respect `CLAUDE_USAGE_ICON_DIR` (when set).

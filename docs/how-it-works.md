@@ -1,4 +1,4 @@
-# How quota-tray works
+# How claude-usage-on-icon works
 
 ## Architecture overview
 

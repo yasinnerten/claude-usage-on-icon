@@ -1,0 +1,9 @@
+line-length = 130
+target-version = "py38"
+
+[lint]
+select = ["E", "F", "W", "I"]
+# DTZ (timezone-naive datetimes) is deliberate: the tray and status line show
+# local time to the user, not UTC. PLW1510 (subprocess.run without check=) is
+# deliberate too: a failed cmd.exe/wslpath probe should fall through, not raise.
+ignore = []

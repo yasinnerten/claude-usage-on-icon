@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to quota-tray!
+Thank you for your interest in contributing to claude-usage-on-icon!
 
 ## Core principle
 
