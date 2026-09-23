@@ -36,6 +36,34 @@ The cache contains:
 - Model names
 - Any other metadata from the status line input
 
+## Setup-time disclosure
+
+Every installer (`install-wsl.sh`, `install-windows.ps1`, `install-linux.sh`,
+`install-macos.sh`) prints a banner **before making any change** listing the
+exact files/folders it will read or write, and states plainly that it makes
+no network calls and requests no elevation. This runs on every invocation,
+not just `--dry-run`/`-WhatIf`, so what the installer is about to touch is
+visible even when it's run non-interactively.
+
+## Repository audit
+
+The repository itself (not just the installed scripts) was audited for
+accidentally committed sensitive data: real usernames, absolute paths from a
+real machine, emails, tokens, or secrets. None were found — `tests/fixtures/`
+contains only synthetic data (e.g. `session_id: "abc123def456"`), and
+`.gitignore` excludes runtime artifacts (`usage-cache.json`,
+`usage-statusline.log`, `settings.json.bak.*`, the cached `win_home` lookup)
+as a defensive measure in case a test run ever points inside the checkout.
+
+## Watermark / branding
+
+The tray, the Linux tray, and the macOS plugin each show a static
+"yasinnerten.com" line (a menu item or, on macOS, a `href=` link) crediting
+the author. It is plain text/a plain link opened by the OS's own browser
+launcher when clicked — it does not phone out on its own, embed a tracking
+pixel, or run on a timer. It costs nothing extra in the "no network"
+guarantee: nothing loads until you deliberately click it.
+
 ## Threat model
 
 **In scope (acceptable):**

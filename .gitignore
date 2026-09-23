@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# claude-usage-on-icon runtime artifacts (should only ever exist under
+# ~/.claude/ or $CLAUDE_USAGE_ICON_DIR outside this repo, but ignored here
+# too in case a test run points somewhere inside the checkout by mistake -
+# these can contain a real session_id, and paths from the user's machine).
+usage-cache.json
+usage-statusline.log
+settings.json.bak.*
+win_home
+*.tmp
