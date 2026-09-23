@@ -16,9 +16,7 @@ Running Claude Code inside WSL and want the Windows tray? This guide covers both
 
 ## Setup
 
-### Step 1: Install the writer on WSL
-
-Inside your WSL terminal:
+**One command, run inside WSL — it installs both sides:**
 
 ```bash
 git clone https://github.com/yasinnerten/claude-usage-on-icon.git
@@ -27,24 +25,26 @@ cd claude-usage-on-icon
 ```
 
 This will:
-1. Copy `statusline.py` to `~/.claude/` (inside WSL)
-2. Merge the `statusLine` setting into `~/.claude/settings.json` (WSL side)
-3. Print instructions for the Windows tray installation
+1. Copy `statusline.py` to `~/.claude/` (inside WSL) and merge the `statusLine` setting into `~/.claude/settings.json`
+2. **Automatically drive `install-windows.ps1` on the Windows side too**, via the same `cmd.exe`/`powershell.exe` interop the writer already uses to auto-detect the Windows home directory — no manual "switch to a Windows terminal" step, and no PowerShell command for you to type yourself. That step:
+   - Compiles a small, auditable C# source file (`install/ClaudeUsageOnIconTray.cs`) into a real `ClaudeUsageOnIconTray.exe`, using the C# compiler already built into every Windows install (`csc.exe` — no download, no binary committed to this repo)
+   - Installs the tray and creates a Startup entry pointing straight at that `.exe` — starting the tray from then on is a double-click, not a PowerShell command with `-ExecutionPolicy Bypass` in it
+   - Starts the tray immediately
+3. Print its own disclosure banner for what the Windows side touches, same as the WSL side's banner, before doing anything
 
-The writer will auto-detect the Windows home directory and write the cache to `/mnt/c/Users/<username>/.claude/usage-cache.json` (accessible from Windows).
+The writer auto-detects the Windows home directory and writes the cache to `/mnt/c/Users/<username>/.claude/usage-cache.json` (accessible from Windows) — no manual path needed on either side.
 
-### Step 2: Install the tray on Windows
+**If you'd rather do the Windows half yourself** (or `install-wsl.sh` couldn't find `powershell.exe`, which it prints clearly if so), pass `--skip-windows` and follow the manual instructions it prints:
 
-On the Windows side, clone the repo again (or point PowerShell at the WSL checkout via
-`\\wsl.localhost\<distro>\...`), then run the installer from inside it:
-
-```powershell
-git clone https://github.com/yasinnerten/claude-usage-on-icon.git
-cd claude-usage-on-icon
-powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
+```bash
+./install/install-wsl.sh --skip-windows
 ```
 
-This installs the Windows tray, which reads from the cache the WSL writer creates.
+```powershell
+# on Windows, inside the same repo (accessible from WSL at \\wsl.localhost\<distro>\...,
+# or clone it separately on the Windows side)
+powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
+```
 
 ## Verify it works
 
@@ -101,6 +101,8 @@ cat ~/.claude/usage-statusline.log
 Look for `write FAILED` or `no rate_limits`. If it says `ok: cache written`, check the Windows tray path (might be reading elsewhere).
 
 ## Uninstall
+
+Unlike install, `--uninstall` does **not** automatically drive the Windows side too — it only removes what's on the WSL half, so it can't accidentally reach across and remove a Windows tray you might be using independently.
 
 ### WSL side
 ```bash

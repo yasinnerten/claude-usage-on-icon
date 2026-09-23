@@ -41,17 +41,13 @@ Then:
 
 ### WSL (Ubuntu / Debian / other)
 
-On WSL, inside the cloned repo:
+One command, run inside WSL — it installs both the WSL writer **and** the Windows tray automatically (via the same interop the writer already uses to find your Windows home directory, no manual PowerShell step):
+
 ```bash
 ./install/install-wsl.sh
 ```
 
-Then on Windows, inside the same repo (accessible from Windows at `\\wsl.localhost\<distro>\...`, or clone it separately on the Windows side):
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup
-```
-
-The tray runs on Windows and reads the cache your WSL writer creates (the Windows home directory is auto-detected — no manual path needed).
+It compiles a real `ClaudeUsageOnIconTray.exe` on the Windows side (from an auditable `.cs` source, using the C# compiler already built into Windows — no download, no binary in this repo) and points the Startup entry at it, so starting the tray afterward is a double-click, not a PowerShell command. Pass `--skip-windows` to install only the WSL half and do the Windows side yourself.
 
 ### Linux (GNOME / KDE / XFCE / Cinnamon)
 

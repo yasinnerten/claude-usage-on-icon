@@ -10,8 +10,9 @@
 - `~/.claude/usage-cache.json` (usage data only: percentages, reset times, session ID)
 - `~/.claude/usage-statusline.log` (diagnostic log: one line, overwritten each run)
 - Installer backups of `settings.json` (if modifying the status line configuration)
-- Autostart entry (Linux: `~/.config/autostart/claude-usage-on-icon.desktop`; optional, user-prompted)
+- Autostart entry (Linux: `~/.config/autostart/claude-usage-on-icon.desktop`; Windows: a Startup-folder shortcut; both optional, only with `--autostart`/`-WithStartup`)
 - (Linux/macOS tray only) Temporary icons in `$XDG_RUNTIME_DIR/<project>/` (not included in cache)
+- (Windows only) `ClaudeUsageOnIconTray.exe` — compiled locally by the installer from the plain-text `install/ClaudeUsageOnIconTray.cs` in this repo, using `csc.exe` (the C# compiler already built into every Windows install, part of .NET Framework). No binary is committed to this repo and nothing is downloaded to produce it; if `csc.exe` isn't present, the installer falls back to the PowerShell-only launcher instead of failing.
 
 ## What claude-usage-on-icon does NOT do
 

@@ -7,6 +7,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- **One-command WSL+Windows install; a real `.exe` instead of a PowerShell
+  command line.** `install-wsl.sh` now automatically drives
+  `install-windows.ps1` on the Windows side too, via the same
+  `cmd.exe`/`powershell.exe` interop the writer already uses to
+  auto-detect the Windows home directory (`wslpath -w` for the UNC path,
+  a few candidate `powershell.exe` locations checked in order). No more
+  "now switch to a Windows terminal and run this command" step - one
+  command from WSL does both halves. `--skip-windows` opts out for anyone
+  who wants to do the Windows half separately, and a missing
+  `powershell.exe` degrades to printing the manual instructions instead of
+  failing.
+
+  Separately, `install-windows.ps1` now compiles `ClaudeUsageOnIconTray.exe`
+  from a small, auditable C# source (`install/ClaudeUsageOnIconTray.cs`,
+  plain text, committed to this repo) using `csc.exe` - the C# compiler
+  already built into every Windows 10/11 install as part of .NET Framework.
+  No download, no binary in the repo, no extra runtime. That `.exe` replaces
+  the previous `launcher.vbs`+`wscript.exe` indirection as the Startup-folder
+  shortcut's target and as what "start the tray manually" instructions point
+  to - the whole point being that starting or troubleshooting the tray is
+  now a double-click, never a PowerShell command with `-ExecutionPolicy
+  Bypass` in it. If `csc.exe` isn't found, the installer falls back to the
+  previous PowerShell-only launcher automatically rather than failing.
+
+  Both pieces were tested for real: the stub-based WSL orchestration tests
+  (dry-run, `--force`, `--skip-windows`, a simulated Windows-side failure),
+  the real compile via `csc.exe` and a real run of the resulting `.exe`
+  (including its error path - a MessageBox, not a silent failure), and
+  then the whole one-command flow for real against the live production
+  Windows+WSL setup on the author's machine.
 - **Animated progress-ring icon on Windows and Linux:** the flat colored
   badge is now a badge + an animated progress ring around it, swept
   clockwise from 12 o'clock proportional to usage, with the percentage
@@ -105,6 +135,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - CI workflow with lint, test, and a no-network security guard.
 
 ### Fixed
+- **Testing mistake, corrected immediately:** while validating the new
+  `.exe`-based Startup shortcut against an "isolated" test directory (via
+  `CLAUDE_CONFIG_DIR`), the Startup-folder shortcut itself isn't
+  isolatable that way - there's exactly one per-user Startup folder -
+  so the test run overwrote the real production shortcut to point at a
+  temp path, and a subsequent cleanup step then deleted it outright.
+  Caught immediately after by checking the real shortcut's target;
+  fixed by re-running the real installer for real (no override) to
+  restore it, this time pointing at the newly-compiled real `.exe`, and
+  verified the tray was running again before moving on. Noted here as a
+  reminder that a global, per-user resource like this can't be sandboxed
+  by an env var the way a cache directory can.
+- `.github/workflows/ci.yml`: the version-stamp check's `grep`/`sed` only
+  matched `# Version: ` (Python/PowerShell/shell comment style), so it
+  silently ignored the new `.cs` file's `// Version: ` line - and, once
+  fixed to match both, correctly caught a real pre-existing gap:
+  `statusline.jxa.js` still carries its M0 placeholder
+  ("to be filled in by M1") since it was never implemented. Extended the
+  pattern to match either comment style, and excluded that one
+  intentionally-still-a-placeholder file by name with a comment
+  explaining why, rather than papering over it with a fake version.
 - `tray-windows.ps1`: `New-TrayIcon`'s ring-drawing code threw
   `[System.Object[]] does not contain a method named 'op_Multiply'` (then,
   after a first fix, `op_Subtraction`) at runtime. Cause: writing

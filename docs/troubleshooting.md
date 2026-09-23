@@ -50,7 +50,9 @@ This is the #1 source of confusion, especially on Windows + WSL.
 - [ ] Claude Code is running as a Windows (native) CLI
 - [ ] `settings.json` is in `%USERPROFILE%\.claude\`
 - [ ] `install-windows.ps1` was run (not `install-wsl.sh`)
-- [ ] PowerShell execution policy allows running scripts:
+- [ ] `%USERPROFILE%\.claude\ClaudeUsageOnIconTray.exe` exists - try double-clicking it
+  - If it's missing, `csc.exe` likely wasn't found at install time (check the installer's output for a "csc.exe not found" note); the PowerShell-only fallback below still works
+- [ ] PowerShell execution policy allows running scripts (only relevant for the fallback):
   - Try running the tray manually: `powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\tray-windows.ps1"`
   - If it works, the policy is fine; if not, add the script to Unblock-File or adjust policy
 - [ ] Check the diagnostic log: `type %USERPROFILE%\.claude\usage-statusline.log`
@@ -59,8 +61,8 @@ This is the #1 source of confusion, especially on Windows + WSL.
 
 - [ ] Claude Code CLI is running **inside WSL** (not Windows)
 - [ ] `~/.claude/` exists inside WSL
-- [ ] `install-wsl.sh` was run (installs the writer in WSL)
-- [ ] `install-windows.ps1` was also run (installs the Windows tray)
+- [ ] `install-wsl.sh` was run - it drives `install-windows.ps1` on the Windows side automatically (unless `--skip-windows` was passed, or it couldn't find `powershell.exe`, in which case it prints the manual command to run yourself)
+- [ ] If it ran automatically, its own output includes install-windows.ps1's banner and a "Windows tray installed and started" line - if that's missing, the automation likely failed silently upstream; re-run with the manual command it would have printed
 - [ ] WSL can reach the Windows home directory:
   - Run: `ls /mnt/c/Users/$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r')/.claude`
   - If this fails, the auto-detect won't work; set `CLAUDE_USAGE_ICON_DIR` manually

@@ -23,7 +23,8 @@ This will:
 1. Back up `%USERPROFILE%\.claude\settings.json`
 2. Merge the `statusLine` setting into `settings.json`
 3. Copy `statusline.ps1` and `tray-windows.ps1` to `%USERPROFILE%\.claude\`
-4. Create a Startup folder shortcut to launch the tray on boot
+4. Compile `ClaudeUsageOnIconTray.exe` there too, from the auditable `install/ClaudeUsageOnIconTray.cs` source, using `csc.exe` — the C# compiler already built into every Windows install, so this needs no download and no binary lives in the repo. If `csc.exe` isn't found (very old/unusual Windows), it falls back to the previous PowerShell-only launcher automatically.
+5. Create a Startup folder shortcut pointing at that `.exe`, so it launches the tray on boot with no console flash and no PowerShell command involved
 
 ### What if installation fails?
 
@@ -46,10 +47,12 @@ After installation, restart Claude Code:
 3. Send a message (you'll see the status line at the bottom)
 4. Look for the tray icon in the bottom-right corner
 
-The tray starts automatically if you used `-WithStartup`. To start it manually:
-```powershell
-powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\tray-windows.ps1"
+The tray starts automatically if you used `-WithStartup`. To start it manually, double-click:
 ```
+%USERPROFILE%\.claude\ClaudeUsageOnIconTray.exe
+```
+
+(If `csc.exe` wasn't available at install time and the fallback was used instead, start it with `powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\tray-windows.ps1"` instead.)
 
 ## Troubleshooting
 
@@ -61,8 +64,8 @@ powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:US
 
 ### No tray icon
 
-1. Verify `tray-windows.ps1` exists in `%USERPROFILE%\.claude\`
-2. Try running it manually (see "Running" section above)
+1. Verify `tray-windows.ps1` and `ClaudeUsageOnIconTray.exe` exist in `%USERPROFILE%\.claude\`
+2. Try running the `.exe` manually (see "Running" section above)
 3. Check Windows Event Viewer for PowerShell errors
 
 ### Tray shows `?` (no data)
@@ -84,7 +87,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 
 This will:
 1. Remove the Startup shortcut (if created)
 2. Remove `statusLine` from `settings.json` (preserves other settings)
-3. Remove `statusline.ps1` and `tray-windows.ps1` from `%USERPROFILE%\.claude\`
+3. Remove `statusline.ps1`, `tray-windows.ps1`, and `ClaudeUsageOnIconTray.exe` from `%USERPROFILE%\.claude\`
 
 The backup of `settings.json` is preserved.
 
