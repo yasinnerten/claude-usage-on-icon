@@ -96,43 +96,96 @@ function Read-Cache {
     return $null
 }
 
-function New-TrayIcon([string]$text, [System.Drawing.Color]$bg) {
-    $size = [System.Windows.Forms.SystemInformation]::SmallIconSize
-    $bmp  = New-Object System.Drawing.Bitmap($size.Width, $size.Height)
-    $g    = [System.Drawing.Graphics]::FromImage($bmp)
+function New-TrayIcon {
+    param(
+        [string]$text,
+        [System.Drawing.Color]$bg,
+        [double]$sweepPct = -1,   # -1 = no progress ring (e.g. "?" state); 0..100 draws the arc
+        [double]$pulse = 0        # 0..1, brightens/thickens the arc for attention (critical/over-limit)
+    )
+    # Render at 4x and let GetHicon scale down - the extra resolution is what
+    # makes the thin progress arc look smooth instead of jagged at 16px.
+    $scale = 4
+    $size  = [System.Windows.Forms.SystemInformation]::SmallIconSize
+    $w = $size.Width * $scale
+    $h = $size.Height * $scale
+
+    $bmp = New-Object System.Drawing.Bitmap($w, $h)
+    $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode     = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $g.TextRenderingHint  = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 
-    $ellipse = New-Object System.Drawing.RectangleF(1, 1, $size.Width - 2, $size.Height - 2)
-    $lighter = [System.Drawing.Color]::FromArgb(255, [Math]::Min(255, $bg.R + 28), [Math]::Min(255, $bg.G + 28), [Math]::Min(255, $bg.B + 28))
-    $gradBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
-        (New-Object System.Drawing.PointF(0, 0)),
-        (New-Object System.Drawing.PointF(0, $size.Height)),
-        $lighter, $bg)
-    $g.FillEllipse($gradBrush, $ellipse)
+    $margin = $w * 0.10
+    $badgeSize = $w - (2 * $margin)
+    $badge  = New-Object System.Drawing.RectangleF($margin, $margin, $badgeSize, $badgeSize)
 
-    $ringColor = [System.Drawing.Color]::FromArgb(90, 0, 0, 0)
-    $ringPen = New-Object System.Drawing.Pen($ringColor, 1.0)
-    $g.DrawEllipse($ringPen, $ellipse)
+    $lighter = [System.Drawing.Color]::FromArgb(255, [Math]::Min(255, $bg.R + 30), [Math]::Min(255, $bg.G + 30), [Math]::Min(255, $bg.B + 30))
+    $bottomY = $h - $margin
+    $gradTop = New-Object System.Drawing.PointF(0, $margin)
+    $gradBottom = New-Object System.Drawing.PointF(0, $bottomY)
+    $gradBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush($gradTop, $gradBottom, $lighter, $bg)
+    $g.FillEllipse($gradBrush, $badge)
 
-    $fontPx = if ($text.Length -ge 3) { $size.Height * 0.4 } else { $size.Height * 0.56 }
+    $ringPen = New-Object System.Drawing.Pen(([System.Drawing.Color]::FromArgb(90, 0, 0, 0)), ($w * 0.02))
+    $g.DrawEllipse($ringPen, $badge)
+
+    # The animated progress ring: a bright arc swept clockwise from 12 o'clock,
+    # proportional to usage. It sits just outside the badge, on its own track,
+    # so the arc's start/end are always visible even at 0% or 100%.
+    if ($sweepPct -ge 0) {
+        $ringMargin = $w * 0.035
+        $trackSize = $w - (2 * $ringMargin)
+        $track = New-Object System.Drawing.RectangleF($ringMargin, $ringMargin, $trackSize, $trackSize)
+        $trackPen = New-Object System.Drawing.Pen(([System.Drawing.Color]::FromArgb(55, 128, 128, 128)), ($w * 0.055))
+        $g.DrawEllipse($trackPen, $track)
+
+        $sweep = [Math]::Min(359.999, [Math]::Max(0.001, 360.0 * ($sweepPct / 100.0)))
+        $arcAlpha = [int](200 + 55 * $pulse)
+        $arcColor = [System.Drawing.Color]::FromArgb($arcAlpha, 255, 255, 255)
+        $arcPen = New-Object System.Drawing.Pen($arcColor, ($w * (0.055 + 0.01 * $pulse)))
+        $arcPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $arcPen.EndCap   = [System.Drawing.Drawing2D.LineCap]::Round
+        $g.DrawArc($arcPen, $track, -90, $sweep)
+        $arcPen.Dispose(); $trackPen.Dispose()
+    }
+
+    $fontPx = if ($text.Length -ge 3) { $h * 0.34 } else { $h * 0.46 }
     $font = New-Object System.Drawing.Font('Segoe UI', [single]$fontPx, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
     $sf = New-Object System.Drawing.StringFormat
     $sf.Alignment     = [System.Drawing.StringAlignment]::Center
     $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $rect = New-Object System.Drawing.RectangleF(0, 0, $size.Width, $size.Height)
+    $rect = New-Object System.Drawing.RectangleF(0, 0, $w, $h)
+    # A soft 1px (at scale) dark shadow keeps the number legible over any
+    # taskbar theme, light or dark, without a hard outline at this size.
+    $shadowRect = New-Object System.Drawing.RectangleF(($w * 0.02), ($h * 0.02), $w, $h)
+    $g.DrawString($text, $font, (New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(90, 0, 0, 0))), $shadowRect, $sf)
     $g.DrawString($text, $font, [System.Drawing.Brushes]::White, $rect, $sf)
 
-    $hIcon = $bmp.GetHicon()
+    $small = New-Object System.Drawing.Bitmap($bmp, $size.Width, $size.Height)
+    $hIcon = $small.GetHicon()
     $icon  = ([System.Drawing.Icon]::FromHandle($hIcon)).Clone()
     [void][ClaudeUsageIcon.Native]::DestroyIcon($hIcon)
-    $sf.Dispose(); $font.Dispose(); $ringPen.Dispose(); $gradBrush.Dispose(); $g.Dispose(); $bmp.Dispose()
+    $sf.Dispose(); $font.Dispose(); $ringPen.Dispose(); $gradBrush.Dispose()
+    $g.Dispose(); $bmp.Dispose(); $small.Dispose()
     return $icon
 }
 
 # ---------------- state + rendering ----------------
-$script:cache   = $null
-$script:details = 'No data yet. Send one message in Claude Code (signed in with a Pro/Max plan).'
+# The 15s poll only decides WHAT to show (target %, color, text). A separate,
+# fast timer (Update-IconFrame) animates the displayed ring toward that target
+# and pulses it under critical/over-limit conditions - so the icon eases into
+# a new value instead of jumping, without re-reading the cache 8x/second.
+$script:cache      = $null
+$script:details    = 'No data yet. Send one message in Claude Code (signed in with a Pro/Max plan).'
+$script:targetPct  = 0.0
+$script:displayPct = 0.0
+$script:centerText = '?'
+$script:badgeColor = [System.Drawing.Color]::FromArgb(120, 120, 120)
+$script:showRing   = $false
+$script:pulseOn    = $false
+$script:pulseT     = 0.0
+$script:tip        = "v$TrayVersion Claude usage: no data yet"
 
 $notify = New-Object System.Windows.Forms.NotifyIcon
 $notify.Visible = $true
@@ -145,13 +198,21 @@ function Update-Tray {
 
     $c = $script:cache
     if ($null -ne $c -and $null -ne $c.SchemaError) {
-        $icon = New-TrayIcon '!' ([System.Drawing.Color]::FromArgb(160, 40, 160))
-        $tip  = "v$TrayVersion $($c.SchemaError)"
+        $script:centerText = '!'
+        $script:badgeColor = [System.Drawing.Color]::FromArgb(160, 40, 160)
+        $script:targetPct  = 0.0
+        $script:showRing   = $false
+        $script:pulseOn    = $false
+        $script:tip  = "v$TrayVersion $($c.SchemaError)"
         $script:details = $c.SchemaError
     }
     elseif ($null -eq $c -or $null -eq $c.rate_limits) {
-        $icon = New-TrayIcon '?' ([System.Drawing.Color]::FromArgb(120, 120, 120))
-        $tip  = "v$TrayVersion Claude usage: no data yet"
+        $script:centerText = '?'
+        $script:badgeColor = [System.Drawing.Color]::FromArgb(120, 120, 120)
+        $script:targetPct  = 0.0
+        $script:showRing   = $false
+        $script:pulseOn    = $false
+        $script:tip  = "v$TrayVersion Claude usage: no data yet"
     } else {
         $fh  = Get-Window $c.rate_limits.five_hour
         $wk  = Get-Window $c.rate_limits.seven_day
@@ -169,11 +230,16 @@ function Update-Tray {
         # Icon number = 5-hour %, falling back to weekly if 5h is missing.
         $main = if ($null -ne $fh) { $fh } else { $wk }
         $num  = if ($null -eq $main) { '-' } elseif ($main.Pct -ge 100) { '!' } else { '{0:N0}' -f $main.Pct }
-        $icon = New-TrayIcon $num $color
+
+        $script:centerText = $num
+        $script:badgeColor = $color
+        $script:targetPct  = if ($null -eq $main) { 0.0 } else { [Math]::Min(100.0, $main.Pct) }
+        $script:showRing   = ($null -ne $main) -and (-not $stale)
+        $script:pulseOn    = (-not $stale) -and (($worst -ge $CritPct) -or ($null -ne $main -and $main.Pct -ge 100))
 
         $fhTxt = if ($null -eq $fh) { 'n/a' } elseif ($fh.IsReset) { 'reset' } else { '{0:N0}% @{1}' -f $fh.Pct, (Format-When $fh.Reset) }
         $wkTxt = if ($null -eq $wk) { 'n/a' } elseif ($wk.IsReset) { 'reset' } else { '{0:N0}%' -f $wk.Pct }
-        $tip   = "v$TrayVersion 5h $fhTxt | wk $wkTxt | $(Format-Age $age)"
+        $script:tip = "v$TrayVersion 5h $fhTxt | wk $wkTxt | $(Format-Age $age)"
 
         $lines = @()
         if ($null -ne $fh) {
@@ -193,10 +259,35 @@ function Update-Tray {
     }
 
     # NotifyIcon.Text is limited to 63 characters on .NET Framework.
-    if ($tip.Length -gt 63) { $tip = $tip.Substring(0, 63) }
+    $tipText = $script:tip
+    if ($tipText.Length -gt 63) { $tipText = $tipText.Substring(0, 63) }
+    $notify.Text = $tipText
+}
+
+function Update-IconFrame {
+    # Ease the displayed ring toward the target percentage (exponential
+    # ease-out): fast at first, settling in over ~15-20 frames (~1.2-1.6s
+    # at the 80ms interval below) instead of jumping straight to the new
+    # value. Snap once close enough so the animation timer can stay cheap.
+    $delta = $script:targetPct - $script:displayPct
+    if ([Math]::Abs($delta) -lt 0.15) {
+        $script:displayPct = $script:targetPct
+    } else {
+        $script:displayPct += $delta * 0.35
+    }
+
+    $pulse = 0.0
+    if ($script:pulseOn) {
+        $script:pulseT += 0.22
+        $pulse = (0.5 + 0.5 * [Math]::Sin($script:pulseT))
+    } else {
+        $script:pulseT = 0.0
+    }
+
+    $sweep = if ($script:showRing) { $script:displayPct } else { -1 }
+    $icon = New-TrayIcon $script:centerText $script:badgeColor $sweep $pulse
     $old = $notify.Icon
     $notify.Icon = $icon
-    $notify.Text = $tip
     if ($null -ne $old) { $old.Dispose() }
 }
 
@@ -206,10 +297,11 @@ function Show-Details {
     $notify.ShowBalloonTip(8000)
 }
 
+$RepoUrl = 'https://github.com/yasinnerten/claude-usage-on-icon'
+
 # ---------------- menu ----------------
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$verItem = $menu.Items.Add("Claude usage on icon v$TrayVersion")
-$verItem.Enabled = $false
+[void]$menu.Items.Add("Claude usage on icon v$TrayVersion", $null, { Start-Process $RepoUrl })
 [void]$menu.Items.Add('-')
 [void]$menu.Items.Add('Show details', $null, { Show-Details })
 [void]$menu.Items.Add('Refresh now',  $null, { Update-Tray })
@@ -219,6 +311,7 @@ $verItem.Enabled = $false
 [void]$menu.Items.Add('-')
 [void]$menu.Items.Add('Exit', $null, {
     $timer.Stop()
+    $animTimer.Stop()
     $notify.Visible = $false
     $notify.Dispose()
     [System.Windows.Forms.Application]::Exit()
@@ -230,12 +323,22 @@ $notify.add_MouseClick({
 })
 
 # ---------------- run ----------------
+# Poll timer: re-reads the cache file every 15s (the only I/O; cheap).
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = $PollSeconds * 1000
 $timer.add_Tick({ try { Update-Tray } catch { } })
 $timer.Start()
 
+# Animation timer: redraws the icon at ~12fps, easing the ring toward
+# whatever Update-Tray last set as the target and pulsing it when critical.
+# No file I/O here, so 12fps on a 16px icon is negligible CPU.
+$animTimer = New-Object System.Windows.Forms.Timer
+$animTimer.Interval = 80
+$animTimer.add_Tick({ try { Update-IconFrame } catch { } })
+$animTimer.Start()
+
 Update-Tray
+Update-IconFrame
 [System.Windows.Forms.Application]::Run()
 
 $mutex.ReleaseMutex()
