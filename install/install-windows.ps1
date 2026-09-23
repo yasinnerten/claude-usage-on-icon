@@ -210,6 +210,7 @@ function Write-Banner {
         Write-Host "  - write: $TrayExeDest  (compiled locally via csc.exe, already part of Windows - no download)"
         Write-Host "  - write: $ClaudeDir\usage-cache.json   (created on the next Claude Code message)"
         Write-Host "  - write: $ClaudeDir\usage-statusline.log"
+        Write-Host "  - later, only if you set one from the tray menu: $ClaudeDir\alert-config.json (your alert threshold)"
         Write-Host "  - edit:  $SettingsFile  (backed up first, other keys preserved)"
         if ($WithStartup) {
             Write-Host "  - write: $ShortcutPath"

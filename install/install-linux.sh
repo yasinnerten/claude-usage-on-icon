@@ -65,6 +65,7 @@ print_banner() {
         echo "  - write: $DEST_WRITER, $DEST_TRAY"
         echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
         echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - later, only if you set one from the tray menu: $CLAUDE_DIR/alert-config.json (your alert threshold)"
         echo "  - write: $ICON_RUNTIME_NOTE"
         echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
         if [ "$AUTOSTART" = "1" ]; then

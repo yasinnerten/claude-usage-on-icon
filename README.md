@@ -74,18 +74,22 @@ Then:
 
 ## What the icon means
 
-On **Windows and Linux**, the badge is surrounded by a progress ring swept clockwise from 12 o'clock, proportional to usage - it eases into a new value over about a second rather than jumping, and pulses gently while critical or over the limit. On **macOS** (SwiftBar plugin), the closest equivalent is a pie glyph (○ ◔ ◑ ◕ ●) next to the percentage - SwiftBar re-runs the script on a timer rather than staying resident, so a true animation isn't possible there.
+On **Windows and Linux**, the badge is a pie that fills clockwise from 12 o'clock in proportion to usage, with the percentage as a large centered number - the wedge eases into a new value over about a second rather than jumping, and brightens rhythmically while critical or over the limit. (An earlier thin-ring design was unreadable at real tray size, so usage is now a solid filled region.) On **macOS** (SwiftBar plugin), the closest equivalent is a pie glyph (○ ◔ ◑ ◕ ●) next to the percentage - SwiftBar re-runs the script on a timer rather than staying resident, so a true animation isn't possible there.
 
 | Badge | Meaning |
 |---|---|
-| Green, ring < 70% full | Good |
-| Amber, ring 70–89% full | Caution |
-| Red, ring ≥ 90% full, pulsing | Critical |
-| Red `!`, full ring, pulsing | Over limit (≥ 100%) |
-| Gray `?`, no ring | No data (check status line is running) |
-| Gray (faded), no ring | Stale (no message in > 12 hours) |
+| Green, pie < 70% filled | Good |
+| Amber, pie 70–89% filled | Caution |
+| Red, pie ≥ 90% filled, brightening | Critical |
+| Red `!`, fully filled, brightening | Over limit (≥ 100%) |
+| Gray `?`, solid (no pie) | No data (check status line is running) |
+| Gray (faded), solid (no pie) | Stale (no message in > 12 hours) |
 
 **Hover** to see quick summary: `5h 31% @14:45 | wk 12% | 3m ago`
+
+## Alerts
+
+Right-click the tray icon (or open the menu-bar dropdown on macOS) → **Set alert threshold...** and enter a percentage, e.g. `80`. You get one notification the first time either the 5-hour or weekly window reaches it, and it re-arms when that window resets. Enter `0` to turn alerts off. The threshold is stored in `alert-config.json` next to the cache (`{"threshold_pct": 80}`), so you can also edit it by hand. Notifications use a Windows balloon, `notify-send` on Linux (silently skipped if not installed), and `osascript` on macOS.
 
 **Click the version item** in the menu ("Claude usage on icon v1.0.0") to open this repo.
 

@@ -9,6 +9,7 @@
 **Writes:**
 - `~/.claude/usage-cache.json` (usage data only: percentages, reset times, session ID)
 - `~/.claude/usage-statusline.log` (diagnostic log: one line, overwritten each run)
+- `alert-config.json` (your alert threshold, e.g. `{"threshold_pct": 80}`; only written if you set one from the tray menu) and, on macOS only, `alert-state.json` (which window period was already alerted, so it fires once)
 - Installer backups of `settings.json` (if modifying the status line configuration)
 - Autostart entry (Linux: `~/.config/autostart/claude-usage-on-icon.desktop`; Windows: a Startup-folder shortcut; both optional, only with `--autostart`/`-WithStartup`)
 - (Linux/macOS tray only) Temporary icons in `$XDG_RUNTIME_DIR/<project>/` (not included in cache)

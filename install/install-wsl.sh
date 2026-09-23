@@ -91,6 +91,7 @@ print_banner() {
         echo "  - write: $DEST_WRITER                 (the writer script itself)"
         echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
         echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - later, only if you set one from the tray menu: $CLAUDE_DIR/alert-config.json (your alert threshold)"
         echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
         echo "  - read:  ~/.config/claude-usage-on-icon/win_home  (cached Windows-home lookup)"
         if [ "$SKIP_WINDOWS" != "1" ] && is_wsl; then

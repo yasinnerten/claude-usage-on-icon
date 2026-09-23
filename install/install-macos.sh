@@ -62,6 +62,7 @@ print_banner() {
         echo "  - write: $DEST_WRITER"
         echo "  - write: $CLAUDE_DIR/usage-cache.json   (created on the next Claude Code message)"
         echo "  - write: $CLAUDE_DIR/usage-statusline.log"
+        echo "  - later, only if you set one from the menu: $CLAUDE_DIR/alert-config.json and alert-state.json (alert threshold, and a marker so each alert fires once)"
         echo "  - write: $DEST_PLUGIN  (a SwiftBar/xbar plugin folder you already control)"
         echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
     fi

@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- **Usage alerts.** "Set alert threshold..." in the tray/menu (e.g. 80) fires
+  one notification the first time either window reaches it, and re-arms when
+  that window resets; 0 turns it off. Shared `alert-config.json`
+  (`{"threshold_pct": 80}`) on all platforms. Windows: balloon + InputBox;
+  Linux: `notify-send` (skipped quietly if absent) + GTK spin-button dialog;
+  macOS: `osascript` notification, with "already alerted" persisted to
+  `alert-state.json` keyed by `resets_at` (the script re-runs fresh each poll,
+  so it can't keep a flag in memory). Alert state machine tested on Linux and
+  macOS logic (fires once, no repeats, re-fires after reset) and the Windows
+  tray was run live with a crossing threshold. **Not verified:** the macOS
+  "Set alert threshold..." dialog and SwiftBar's handling of the quoted plugin
+  path in `bash=`, the Linux GTK dialog, and notify-send delivery (no
+  macOS/GTK available here).
+- **Legible, visibly animated tray icon (Windows/Linux).** Rendered the icon to
+  PNG and looked at it at true tray size: the thin progress ring was
+  indistinguishable noise, wasted margin shrank the badge, and the drop shadow
+  smeared the digits - which is why it read as unreadable and "not animated".
+  Now: usage is a solid pie wedge, the badge is near full-bleed, no shadow, and
+  font size is fit to the text width (a fixed height ratio clipped "31" to "3").
+  Windows also calls `SetProcessDPIAware()`: at 150% scaling `SmallIconSize`
+  otherwise lies with 16x16 and Windows blurrily upscales, whereas the real
+  size is 24x24. Verified by rendering easing frames (21% -> 44% -> 53%) that
+  visibly differ.
 - **One-command WSL+Windows install; a real `.exe` instead of a PowerShell
   command line.** `install-wsl.sh` now automatically drives
   `install-windows.ps1` on the Windows side too, via the same
@@ -37,7 +60,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   (including its error path - a MessageBox, not a silent failure), and
   then the whole one-command flow for real against the live production
   Windows+WSL setup on the author's machine.
-- **Animated progress-ring icon on Windows and Linux:** the flat colored
+- **(Superseded by the pie-fill icon above.) Animated progress-ring icon on Windows and Linux:** the flat colored
   badge is now a badge + an animated progress ring around it, swept
   clockwise from 12 o'clock proportional to usage, with the percentage
   still as the center number. The ring eases toward a new value over
