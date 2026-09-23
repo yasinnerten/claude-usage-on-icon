@@ -4,6 +4,8 @@
 
 Show Claude Code's 5-hour and weekly plan usage persistently in your OS tray or menu bar, without opening the usage page.
 
+📖 **[Browse the docs site](https://yasinnerten.github.io/claude-usage-on-icon/)** - the same guides below, rendered as a website.
+
 ## Core principle: no token, no network
 
 Unlike existing tools that read your OAuth token and call undocumented APIs, claude-usage-on-icon uses only:

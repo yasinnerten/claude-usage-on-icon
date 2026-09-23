@@ -1,3 +1,8 @@
+---
+layout: default
+title: Troubleshooting
+---
+
 # Troubleshooting claude-usage-on-icon
 
 ## Common issues and solutions

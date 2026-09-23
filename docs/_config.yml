@@ -1,0 +1,20 @@
+title: claude-usage-on-icon
+description: Plan-usage tray icon for Claude Code - no token, no network, no undocumented APIs.
+theme: jekyll-theme-cayman
+show_downloads: false
+
+url: "https://yasinnerten.github.io"
+baseurl: "/claude-usage-on-icon"
+
+github:
+  repository_url: https://github.com/yasinnerten/claude-usage-on-icon
+
+plugins:
+  - jekyll-relative-links
+
+exclude:
+  - "*.gemspec"
+  - "*.gem"
+  - Gemfile
+  - Gemfile.lock
+  - vendor/

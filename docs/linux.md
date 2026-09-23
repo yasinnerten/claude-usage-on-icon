@@ -1,3 +1,8 @@
+---
+layout: default
+title: Linux
+---
+
 # Linux installation and usage
 
 ## Prerequisites

@@ -1,3 +1,8 @@
+---
+layout: default
+title: WSL
+---
+
 # WSL installation and usage
 
 Running Claude Code inside WSL and want the Windows tray? This guide covers both sides.

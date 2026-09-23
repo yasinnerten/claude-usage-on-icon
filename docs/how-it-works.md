@@ -1,3 +1,8 @@
+---
+layout: default
+title: How it works
+---
+
 # How claude-usage-on-icon works
 
 ## Architecture overview

@@ -1,3 +1,8 @@
+---
+layout: default
+title: Windows
+---
+
 # Windows installation and usage
 
 ## Prerequisites
