@@ -28,11 +28,11 @@ jobs:
             python-version: "3.12"
 
     steps:
-      - uses: actions/checkout@11bd71901edd7d16190fc6369f1a12a3c1ff069b  # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       # Python setup (all platforms)
       - name: Set up Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b470db3fb942d3ce0d  # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -52,7 +52,7 @@ jobs:
       # No-network guard: fail if sources contain network-related keywords.
       # Scans writer/, tray/, and install/ - the installers must not fetch
       # anything either.
-      - name: Security: no-network guard
+      - name: "Security: no-network guard"
         run: |
           if grep -rnE 'Invoke-WebRequest|Invoke-RestMethod|Net\.WebClient|HttpClient|urllib|requests\.(get|post|put)|socket\.(socket|connect)|http\.client|(^|[^A-Za-z0-9_./-])curl |wget |URLSession|\.credentials|oauth|Keychain|security find-' writer/ tray/ install/ --include="*.py" --include="*.ps1" --include="*.sh" 2>/dev/null | grep -v 'allow-network'; then
             echo "ERROR: Found network-related code. This project must not make HTTP calls or read credentials."
@@ -93,7 +93,7 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901edd7d16190fc6369f1a12a3c1ff069b  # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Check version stamps match across scripts
         run: |
           FILES=$(grep -rl '^# Version: ' writer/ tray/ install/ 2>/dev/null | sort)
