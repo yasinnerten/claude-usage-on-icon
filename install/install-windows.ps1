@@ -33,9 +33,51 @@ $StatuslineCmd = "powershell -NoProfile -ExecutionPolicy Bypass -File $($ClaudeD
 
 $StartupDir = Join-Path ([Environment]::GetFolderPath('Startup')) ''
 $ShortcutPath = Join-Path $StartupDir 'Claude usage on icon.lnk'
-$LauncherPath = Join-Path $ClaudeDir 'launcher.vbs'
+$LauncherPath = Join-Path $ClaudeDir 'launcher.vbs'   # legacy v1.0.0 launcher; removed on uninstall/upgrade
 $TrayDest = Join-Path $ClaudeDir 'tray-windows.ps1'
 $WriterDest = Join-Path $ClaudeDir 'statusline.ps1'
+$TrayExeDest = Join-Path $ClaudeDir 'ClaudeUsageOnIconTray.exe'
+
+function Find-Csc {
+    # csc.exe ships with every Windows 10/11 install as part of .NET Framework
+    # (not the newer dotnet SDK) - no download needed. Checked in this exact
+    # order across real Windows machines; the version folder name has been
+    # stable (v4.0.30319) for the whole .NET 4.x line.
+    $candidates = @(
+        (Join-Path $env:windir 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'),
+        (Join-Path $env:windir 'Microsoft.NET\Framework\v4.0.30319\csc.exe')
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path -LiteralPath $c) { return $c }
+    }
+    return $null
+}
+
+function Build-TrayLauncher {
+    # Compiles ClaudeUsageOnIconTray.cs (plain-text, auditable, committed to
+    # this repo) into a real .exe using the OS's own C# compiler - no binary
+    # ships in the repo, no network call, no extra runtime install. Returns
+    # $true on success; callers fall back to the PowerShell-only path (the
+    # legacy launcher.vbs mechanism) if this returns $false.
+    $csc = Find-Csc
+    if (-not $csc) {
+        Write-Host "note: csc.exe not found; the tray launcher will stay a PowerShell command instead of a .exe"
+        return $false
+    }
+    $srcCs = Join-Path $RepoRoot 'install/ClaudeUsageOnIconTray.cs'
+    if (-not (Test-Path -LiteralPath $srcCs)) {
+        Write-Host "note: ClaudeUsageOnIconTray.cs not found next to this installer; skipping the compiled launcher"
+        return $false
+    }
+    $compileOutput = & $csc /nologo /target:winexe "/out:$TrayExeDest" $srcCs 2>&1
+    if (-not (Test-Path -LiteralPath $TrayExeDest)) {
+        Write-Host "note: compiling the tray launcher failed; falling back to a PowerShell command:"
+        Write-Host ($compileOutput -join "`n")
+        return $false
+    }
+    Write-Host "compiled tray launcher -> $TrayExeDest"
+    return $true
+}
 
 function Merge-StatusLine {
     param([bool]$WhatIfMode)
@@ -115,17 +157,28 @@ function Remove-StatusLine {
 }
 
 function New-StartupShortcut {
-    $vbs = @"
+    param([bool]$HaveExe)
+
+    $wshShell = New-Object -ComObject WScript.Shell
+    $shortcut = $wshShell.CreateShortcut($ShortcutPath)
+    if ($HaveExe) {
+        # The common, no-console-flash case: point straight at the compiled
+        # .exe, no PowerShell command line involved at all.
+        $shortcut.TargetPath = $TrayExeDest
+        $shortcut.Arguments = ''
+    } else {
+        # Fallback when csc.exe isn't available: same hidden-launch trick as
+        # before, still via a .vbs (wscript.exe has no console of its own),
+        # since a raw powershell.exe Startup shortcut would flash one.
+        $vbs = @"
 Set objShell = CreateObject("WScript.Shell")
 scriptPath = "$TrayDest"
 objShell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptPath & """", 0, False
 "@
-    [System.IO.File]::WriteAllText($LauncherPath, $vbs, (New-Object System.Text.ASCIIEncoding))
-
-    $wshShell = New-Object -ComObject WScript.Shell
-    $shortcut = $wshShell.CreateShortcut($ShortcutPath)
-    $shortcut.TargetPath = 'wscript.exe'
-    $shortcut.Arguments = "`"$LauncherPath`""
+        [System.IO.File]::WriteAllText($LauncherPath, $vbs, (New-Object System.Text.ASCIIEncoding))
+        $shortcut.TargetPath = 'wscript.exe'
+        $shortcut.Arguments = "`"$LauncherPath`""
+    }
     $shortcut.Description = "Claude usage on icon tray v$Version"
     $shortcut.Save()
     Write-Output "created Startup shortcut: $ShortcutPath"
@@ -147,19 +200,19 @@ function Write-Banner {
     Write-Host "---------------------------------------------------"
     if ($Uninstall) {
         Write-Host "This will REMOVE what a previous install added:"
-        Write-Host "  - delete: $TrayDest, $WriterDest"
+        Write-Host "  - delete: $TrayDest, $WriterDest, $TrayExeDest"
         Write-Host "  - delete: $ShortcutPath, $LauncherPath (if present)"
         Write-Host "  - edit:   $SettingsFile (only removes our statusLine entry; other keys untouched)"
     } else {
         Write-Host "This will read/write only these locations, as the current user (no admin, no elevation):"
         Write-Host "  - write: $TrayDest"
         if (-not $TrayOnly) { Write-Host "  - write: $WriterDest" }
+        Write-Host "  - write: $TrayExeDest  (compiled locally via csc.exe, already part of Windows - no download)"
         Write-Host "  - write: $ClaudeDir\usage-cache.json   (created on the next Claude Code message)"
         Write-Host "  - write: $ClaudeDir\usage-statusline.log"
         Write-Host "  - edit:  $SettingsFile  (backed up first, other keys preserved)"
         if ($WithStartup) {
             Write-Host "  - write: $ShortcutPath"
-            Write-Host "  - write: $LauncherPath"
         }
     }
     Write-Host "No network calls. No credentials, tokens, or registry access. No elevation/UAC prompt."
@@ -173,7 +226,7 @@ Write-Banner
 if ($Uninstall) {
     Remove-StatusLine
     Remove-StartupShortcut
-    foreach ($f in @($TrayDest, $WriterDest)) {
+    foreach ($f in @($TrayDest, $WriterDest, $TrayExeDest)) {
         if (Test-Path -LiteralPath $f) {
             Remove-Item -LiteralPath $f -Force
             Write-Output "removed $f"
@@ -197,12 +250,15 @@ foreach ($p in @($srcTray, $srcWriter)) {
     }
 }
 
+$haveExe = $false
 if ($whatIfMode) {
     Write-Output "[WhatIf] would copy $srcTray -> $TrayDest"
+    Write-Output "[WhatIf] would compile $TrayExeDest"
 } else {
     Copy-Item -LiteralPath $srcTray -Destination $TrayDest -Force
     Unblock-File -LiteralPath $TrayDest
     Write-Output "installed tray -> $TrayDest"
+    $haveExe = Build-TrayLauncher
 }
 
 if (-not $TrayOnly) {
@@ -220,15 +276,24 @@ if (-not $TrayOnly) {
 }
 
 if ($WithStartup -and -not $whatIfMode) {
-    New-StartupShortcut
+    New-StartupShortcut -HaveExe $haveExe
     Write-Output "Starting the tray now..."
-    Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',"`"$TrayDest`"" -WindowStyle Hidden
+    if ($haveExe) {
+        Start-Process -FilePath $TrayExeDest
+    } else {
+        Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',"`"$TrayDest`"" -WindowStyle Hidden
+    }
 } elseif ($WithStartup) {
     Write-Output "[WhatIf] would create a Startup shortcut and launch the tray"
 }
 
 if (-not $whatIfMode) {
     Write-Output ""
-    Write-Output "Done. If the tray isn't already running, start it with:"
-    Write-Output "  powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TrayDest`""
+    if ($haveExe) {
+        Write-Output "Done. If the tray isn't already running, start it by double-clicking:"
+        Write-Output "  $TrayExeDest"
+    } else {
+        Write-Output "Done. If the tray isn't already running, start it with:"
+        Write-Output "  powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TrayDest`""
+    }
 }
