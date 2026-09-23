@@ -25,6 +25,19 @@ KNOWN_SCHEMA = 1
 STALE_HOURS = 12
 WARN_PCT = 70
 CRIT_PCT = 90
+REPO_URL = "https://github.com/yasinnerten/claude-usage-on-icon"
+
+# SwiftBar re-runs this script on a fixed interval (the ".15s." in the
+# filename) rather than staying resident, so there's no way to animate a
+# smooth transition or pulse between refreshes the way the Windows/Linux
+# tray does. This pie glyph is the closest still-honest equivalent: a
+# discrete, at-a-glance ring that updates each poll.
+PIE_GLYPHS = ("○", "◔", "◑", "◕", "●")  # ○ ◔ ◑ ◕ ●
+
+
+def pie_glyph(pct):
+    idx = min(4, max(0, int(pct / 20)))
+    return PIE_GLYPHS[idx]
 
 
 def resolve_cache_dir():
@@ -91,6 +104,7 @@ def main():
 
     if cache and cache.get("schema_error"):
         print("! | color=purple")
+        print(f"Claude usage on icon v{TRAY_VERSION} | href={REPO_URL}")
         print("---")
         print(cache["schema_error"])
         return
@@ -98,6 +112,7 @@ def main():
     rate_limits = (cache or {}).get("rate_limits")
     if not cache or not rate_limits:
         print("? | color=gray")
+        print(f"Claude usage on icon v{TRAY_VERSION} | href={REPO_URL}")
         print("---")
         print("No data yet")
         print("Send one message in Claude Code (signed in with a Pro/Max plan)")
@@ -121,12 +136,16 @@ def main():
     main_window = fh or wk
     if main_window is None:
         label = "-"
+        glyph = PIE_GLYPHS[0]
     elif main_window["pct"] >= 100:
         label = "!"
+        glyph = PIE_GLYPHS[-1]
     else:
         label = f"{main_window['pct']:.0f}%"
+        glyph = pie_glyph(main_window["pct"])
 
-    print(f"{label} | color={color}")
+    print(f"{glyph} {label} | color={color}")
+    print(f"Claude usage on icon v{TRAY_VERSION} | href={REPO_URL}")
     print("---")
 
     if fh is not None:
