@@ -78,16 +78,20 @@ Then:
 
 ## What the icon means
 
-| Icon | Meaning |
+On **Windows and Linux**, the badge is surrounded by a progress ring swept clockwise from 12 o'clock, proportional to usage - it eases into a new value over about a second rather than jumping, and pulses gently while critical or over the limit. On **macOS** (SwiftBar plugin), the closest equivalent is a pie glyph (○ ◔ ◑ ◕ ●) next to the percentage - SwiftBar re-runs the script on a timer rather than staying resident, so a true animation isn't possible there.
+
+| Badge | Meaning |
 |---|---|
-| Green circle with `%` | Good (< 70% used) |
-| Amber circle with `%` | Caution (70–89% used) |
-| Red circle with `%` | Critical (≥ 90% used) |
-| Red circle with `!` | Over limit (≥ 100%) |
-| Gray circle with `?` | No data (check status line is running) |
-| Gray circle (faded) | Stale (no message in > 12 hours) |
+| Green, ring < 70% full | Good |
+| Amber, ring 70–89% full | Caution |
+| Red, ring ≥ 90% full, pulsing | Critical |
+| Red `!`, full ring, pulsing | Over limit (≥ 100%) |
+| Gray `?`, no ring | No data (check status line is running) |
+| Gray (faded), no ring | Stale (no message in > 12 hours) |
 
 **Hover** to see quick summary: `5h 31% @14:45 | wk 12% | 3m ago`
+
+**Click the version item** in the menu ("Claude usage on icon v1.0.0") to open this repo.
 
 **Click** for full details: both windows, reset times, age, tray version, cache path.
 

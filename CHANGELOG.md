@@ -7,6 +7,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- **Animated progress-ring icon on Windows and Linux:** the flat colored
+  badge is now a badge + an animated progress ring around it, swept
+  clockwise from 12 o'clock proportional to usage, with the percentage
+  still as the center number. The ring eases toward a new value over
+  ~1-1.5s (exponential ease-out) instead of jumping, and pulses (breathing
+  brightness/thickness) while critical (>=90%) or over the limit. Driven by
+  a separate ~12fps redraw timer that does no file I/O, so it's cheap; the
+  existing 15s poll timer still owns reading the cache.
+- **macOS: pie-glyph approximation, not true animation.** SwiftBar re-runs
+  the plugin script on its refresh interval rather than staying resident,
+  so there's no process to animate between polls. The plugin now shows a
+  discrete pie glyph (○ ◔ ◑ ◕ ●) next to the percentage, colored the same as
+  the level, updating each 15s refresh - the closest honest equivalent
+  given the plugin model, documented as such rather than overclaimed.
+- **Clicking the version menu item now opens the repo.** "Claude usage on
+  icon v1.0.0" was previously a disabled label on Windows and Linux; it's
+  now clickable and opens
+  https://github.com/yasinnerten/claude-usage-on-icon (`Start-Process` /
+  `xdg-open` / SwiftBar `href=` respectively).
+- **Account name: investigated and dropped.** Captured the real, live
+  status line JSON Claude Code sends (temporarily, then restored the
+  original config) to check for an account/email field. There isn't one -
+  the documented fields are session_id, session_name, model, workspace,
+  cost, context_window, rate_limits, etc. Showing a real account identity
+  would require reading `.credentials.json` or an undocumented API, both
+  out of scope per this project's core principle. Decided with the owner
+  not to substitute something else in its place (e.g. session_name or the
+  OS username) rather than imply an account identity this project doesn't
+  have.
 - **Repository sensitive-data audit:** searched every tracked file for real
   usernames, absolute paths from a real machine, emails, tokens, or secrets.
   None found. Added defensive `.gitignore` entries for this project's own
@@ -76,6 +105,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - CI workflow with lint, test, and a no-network security guard.
 
 ### Fixed
+- `tray-windows.ps1`: `New-TrayIcon`'s ring-drawing code threw
+  `[System.Object[]] does not contain a method named 'op_Multiply'` (then,
+  after a first fix, `op_Subtraction`) at runtime. Cause: writing
+  arithmetic like `$w - 2 * $margin` directly inside a
+  `New-Object Type($a, $b, $c)`-style argument list - PowerShell's parser
+  mishandles mixed operators there. Fixed by precomputing every such
+  expression into its own variable before the constructor call. Caught by
+  actually invoking `New-TrayIcon` for all five icon states (normal,
+  critical/pulsing, over-limit, no-data, 0%) rather than assuming the
+  syntax check (which passed) meant the code worked at runtime.
+- `tray-linux.py`: splitting icon rendering into a separate animation tick
+  (for the same reason as the Windows change above) initially left the
+  tray tooltip hardcoded to a static "claude-usage-on-icon v1.0.0" instead
+  of the useful "5h 31% | wk 12% | 3m ago" summary the 15s poll computes.
+  Fixed by storing that string on `self.tooltip` and having the animation
+  tick read it back, instead of composing its own.
 - `install-windows.ps1`: `Merge-StatusLine`'s informational `Write-Output` calls were being
   swallowed by `$ok = Merge-StatusLine ...` (PowerShell assignment captures the whole
   pipeline, not just `return`), so status messages never printed. Switched those calls to
