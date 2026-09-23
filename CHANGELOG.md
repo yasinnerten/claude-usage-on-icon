@@ -7,6 +7,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- **Repository sensitive-data audit:** searched every tracked file for real
+  usernames, absolute paths from a real machine, emails, tokens, or secrets.
+  None found. Added defensive `.gitignore` entries for this project's own
+  runtime artifacts (`usage-cache.json`, `usage-statusline.log`,
+  `settings.json.bak.*`, the cached `win_home` lookup) in case a test run
+  ever points inside the checkout. See `SECURITY.md` for the full writeup.
+- **Setup-time permission disclosure:** every installer now prints a banner,
+  before touching anything, listing the exact files/folders it will read or
+  write and restating the no-network/no-elevation guarantee. Runs on every
+  invocation, not just `--dry-run`/`-WhatIf`.
+- **Tray UI polish and watermark:** the Windows tray, Linux tray, and macOS
+  SwiftBar plugin all got a subtle gradient + border on the icon (was a flat
+  fill), and a "yasinnerten.com" credit — a menu item on Windows/Linux that
+  opens the browser, an `href=` link on macOS. Static text/link only; it does
+  not run on a timer or phone out on its own.
+- **GitHub Pages site built from `docs/`:** `docs/_config.yml` (Jekyll,
+  `jekyll-theme-cayman` theme, `jekyll-relative-links` plugin so the existing
+  relative `.md` links between guides resolve correctly) and `docs/index.md`
+  as the landing page. `.github/workflows/pages.yml` builds and deploys it on
+  every push to `docs/**`. **Requires a one-time manual step:** repo Settings
+  → Pages → Build and deployment → Source: "GitHub Actions" (cannot be set
+  via a commit).
 - **Windows + WSL (M1) — implemented and live-validated:**
   - `writer/statusline.py`: cross-platform writer (Linux/WSL/macOS). Auto-detects WSL via
     `/proc/version` / `WSLInterop`, resolves the Windows home directory through `cmd.exe` +
@@ -61,6 +83,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `install-windows.ps1`: the Startup-shortcut launcher (`launcher.vbs`) was built via a
   PowerShell `-replace` that doubled every backslash in the path. Windows tolerated it, but
   the fix removes the unnecessary regex replace and uses the already-resolved path directly.
+- `.github/workflows/ci.yml`: the `actions/checkout@<sha>` and `actions/setup-python@<sha>`
+  pins were **fabricated, non-existent commit SHAs** (confirmed via the GitHub API - a fetch
+  against the checkout SHA returned 422). These would have made CI fail outright on the very
+  first run. Replaced with verified real SHAs for the actual `v4`/`v5` tags. A lesson for any
+  future SHA-pinning: verify against the API, don't guess a SHA that merely looks plausible.
+- `.github/workflows/ci.yml`: `- name: Security: no-network guard` is invalid YAML (an
+  unquoted second colon in a scalar), which would have failed to parse. Quoted the string.
+  Caught by actually parsing every workflow/config YAML file with a real parser instead of
+  eyeballing it - the same check that later caught the fabricated SHAs.
+- `install-macos.sh`: the new disclosure banner's own text ("no ... Keychain access") tripped
+  the no-network guard's `Keychain` pattern - a false positive from the guard reading its own
+  negation. Reworded to "password-manager access" rather than special-casing the line.
 
 ### Known gaps before a v1.0.0 tag
 - No release zips yet — the Quick Start uses `git clone` since the installers resolve
