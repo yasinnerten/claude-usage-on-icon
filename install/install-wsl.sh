@@ -1,13 +1,17 @@
 #!/bin/bash
 # install-wsl.sh
 # Version: 1.0.0
-# WSL installer for claude-usage-on-icon's writer (the tray runs on Windows; see install-windows.ps1).
+# WSL installer for claude-usage-on-icon's writer AND, automatically, the
+# Windows tray (see install-windows.ps1) - one command instead of two.
 #
 # What it does:
 #   - Copies writer/statusline.py to $CLAUDE_CONFIG_DIR (or ~/.claude)
 #   - Backs up settings.json, then merges the statusLine command in (preserves other keys)
 #   - Warns instead of overwriting if a different statusLine is already configured
-#   - Prints the next step (installing the Windows tray)
+#   - Then, unless --skip-windows is passed, drives install-windows.ps1 on the
+#     Windows side too, via the same cmd.exe/powershell.exe interop the
+#     writer already uses to auto-detect the Windows home directory - no
+#     manual "switch to a Windows terminal" step needed.
 #
 # No network calls, no credential access. Safe to run more than once (idempotent).
 
@@ -20,19 +24,28 @@ SETTINGS="$CLAUDE_DIR/settings.json"
 DEST_WRITER="$CLAUDE_DIR/statusline.py"
 STATUSLINE_CMD="python3 $DEST_WRITER"
 
+PWSH_CANDIDATES=(
+    "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    "/mnt/c/Windows/Sysnative/WindowsPowerShell/v1.0/powershell.exe"
+)
+
 DRY_RUN=0
 UNINSTALL=0
 FORCE=0
+SKIP_WINDOWS=0
 
 usage() {
     cat <<EOF
 claude-usage-on-icon WSL installer v$VERSION
 
-Usage: $0 [--dry-run] [--uninstall] [--force]
+Usage: $0 [--dry-run] [--uninstall] [--force] [--skip-windows]
 
-  --dry-run    Show what would change, without writing anything
-  --uninstall  Remove the writer and the statusLine entry we added
-  --force      Overwrite an existing, different statusLine command
+  --dry-run       Show what would change, without writing anything
+  --uninstall     Remove the writer and the statusLine entry we added
+  --force         Overwrite an existing, different statusLine command
+  --skip-windows  Install the WSL writer only; don't also drive the Windows
+                  tray installer (e.g. if you'll install it separately, or
+                  aren't using the Windows tray at all)
 EOF
 }
 
@@ -41,10 +54,30 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --uninstall) UNINSTALL=1 ;;
         --force) FORCE=1 ;;
+        --skip-windows) SKIP_WINDOWS=1 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "unknown option: $arg" >&2; usage; exit 1 ;;
     esac
 done
+
+is_wsl() {
+    [ -e /proc/sys/fs/binfmt_misc/WSLInterop ] && return 0
+    grep -qi microsoft /proc/version 2>/dev/null
+}
+
+find_powershell() {
+    for c in "${PWSH_CANDIDATES[@]}"; do
+        if [ -x "$c" ]; then
+            printf '%s' "$c"
+            return 0
+        fi
+    done
+    if command -v powershell.exe >/dev/null 2>&1; then
+        command -v powershell.exe
+        return 0
+    fi
+    return 1
+}
 
 print_banner() {
     echo "claude-usage-on-icon WSL installer v$VERSION"
@@ -60,6 +93,12 @@ print_banner() {
         echo "  - write: $CLAUDE_DIR/usage-statusline.log"
         echo "  - edit:  $SETTINGS  (backed up first, other keys preserved)"
         echo "  - read:  ~/.config/claude-usage-on-icon/win_home  (cached Windows-home lookup)"
+        if [ "$SKIP_WINDOWS" != "1" ] && is_wsl; then
+            echo "  - Also runs install-windows.ps1 on the Windows side (via the same"
+            echo "    cmd.exe/powershell.exe interop the writer uses), which prints its own"
+            echo "    banner for what IT touches before doing anything. Pass --skip-windows"
+            echo "    to do only the WSL half."
+        fi
     fi
     echo "No network calls. No credentials, tokens, or keychains are read. No sudo/elevation."
     echo "--------------------------------------------"
@@ -159,13 +198,63 @@ set -e
 if [ "$rc" = "3" ]; then
     exit 1
 fi
-if [ "$DRY_RUN" = "1" ] || [ "$rc" != "0" ]; then
+if [ "$rc" != "0" ]; then
     exit "$rc"
 fi
 
-cp "$SRC_WRITER" "$DEST_WRITER"
-chmod +x "$DEST_WRITER"
-echo "installed writer -> $DEST_WRITER"
+if [ "$DRY_RUN" = "1" ]; then
+    echo "[dry-run] would copy $SRC_WRITER -> $DEST_WRITER"
+else
+    cp "$SRC_WRITER" "$DEST_WRITER"
+    chmod +x "$DEST_WRITER"
+    echo "installed writer -> $DEST_WRITER"
+fi
+
+manual_windows_instructions() {
+    echo
+    echo "Next step: on Windows, run install-windows.ps1 to install the tray icon."
+    echo "It reads the cache this WSL writer creates (Windows home is auto-detected)."
+    echo "  powershell -NoProfile -ExecutionPolicy Bypass -File install/install-windows.ps1 -WithStartup"
+}
+
+if [ "$SKIP_WINDOWS" = "1" ]; then
+    manual_windows_instructions
+    exit 0
+fi
+
+if ! is_wsl; then
+    # Not actually WSL (e.g. run by mistake on native Linux); nothing on the
+    # Windows side to drive.
+    exit 0
+fi
+
+PWSH="$(find_powershell)" || {
+    echo
+    echo "note: could not find powershell.exe to automatically install the Windows tray."
+    manual_windows_instructions
+    exit 0
+}
+
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+WIN_INSTALLER_UNC="$(wslpath -w "$REPO_ROOT/install/install-windows.ps1")"
+
 echo
-echo "Next step: on Windows, run install-windows.ps1 to install the tray icon."
-echo "It reads the cache this WSL writer creates (Windows home is auto-detected)."
+if [ "$DRY_RUN" = "1" ]; then
+    echo "[dry-run] Windows side (install-windows.ps1 -WhatIf):"
+else
+    echo "Installing the Windows tray automatically..."
+fi
+echo "-----------------------------------------------"
+WIN_ARGS=(-WithStartup)
+[ "$FORCE" = "1" ] && WIN_ARGS+=(-Force)
+[ "$DRY_RUN" = "1" ] && WIN_ARGS+=(-WhatIf)
+if "$PWSH" -NoProfile -ExecutionPolicy Bypass -File "$WIN_INSTALLER_UNC" "${WIN_ARGS[@]}"; then
+    echo "-----------------------------------------------"
+    [ "$DRY_RUN" != "1" ] && echo "Windows tray installed and started."
+else
+    rc=$?
+    echo "-----------------------------------------------"
+    echo "note: the Windows installer exited with an error (see its output above)."
+    manual_windows_instructions
+    exit "$rc"
+fi
